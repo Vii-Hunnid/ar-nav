@@ -120,11 +120,20 @@
 
         /* Step card with arrow */
         #hud-step-card { display: flex; align-items: center; gap: 10px; }
+
+        /* Base style (already provided) */
         #nav-arrow {
             width: 36px; height: 36px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             font-size: 26px; transition: transform 0.3s;
         }
+        /* Directional rotations */
+        .arrow-right { transform: rotate(90deg); }
+        .arrow-down  { transform: rotate(180deg); }
+        .arrow-left  { transform: rotate(-90deg); }
+        .arrow-up    { transform: rotate(0deg); }
+
+        
         #step-text { font-size: 14px; flex: 1; text-align: left; }
 
         /* Back button */
@@ -175,8 +184,9 @@
         </div>
         <div class="hud-card" id="hud-step-wrap">
             <div id="hud-step-card">
-                <div id="nav-arrow">\u2191</div>
+                <div id="nav-arrow">\2191</div>
                 <div id="step-text">Calculating route...</div>
+                <div id="nav-arrow">&#x2191;</div>
             </div>
         </div>
     </div>
