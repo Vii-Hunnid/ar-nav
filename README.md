@@ -13,12 +13,19 @@ Open on a mobile device with camera and GPS access.
 ## Features
 
 - **Place search** — Search for any place worldwide using OpenStreetMap/Nominatim (free, no API key). Results are biased towards your current location
+- **Coordinate search** — Paste coordinates like `-26.1340, 28.0690` directly into the search bar for reverse geocoding
 - **Save as tag** — Tap **+ Save** on any search result to add it to your saved destinations. Tags persist across sessions via localStorage
 - **Remove tags** — User-added tags can be removed with the x button; default locations stay
 - **Default JHB locations** — Ships with destinations around Johannesburg (Rosebank Mall, Melrose Arch, Sandton City, Nelson Mandela Square, The Zone @ Rosebank)
 - **Live distance on list** — Each destination shows real-time distance from your current position
-- **Walking route via OSRM** — Fetches real walking paths (sidewalks, crossings) using the free OSRM API
-- **Turn-by-turn HUD** — Shows next maneuver (turn left/right, continue) with distance and ETA
+- **Walking / Driving mode** — Dropdown to switch between walking and driving routes (changes OSRM profile)
+- **Walking route via OSRM** — Fetches real walking or driving paths using the free OSRM API
+- **Turn-by-turn HUD** — Shows next maneuver (turn left/right, continue) with distance, street name, and ETA
+- **Street name display** — Live reverse geocoding shows the current street name and suburb on the HUD
+- **Compass heading** — Displays cardinal direction (N/NE/E/SE/S/SW/W/NW) with degrees
+- **Directional arrow** — Rotating arrow on the HUD points in the direction of the next maneuver
+- **Live speed** — Shows your current speed in km/h from GPS
+- **Haptic feedback** — Subtle vibration when navigation advances to the next step
 - **AR waypoint path** — Blue spheres along the route in the camera view; turn green when close
 - **AR destination pin** — 3D marker appears when facing the destination
 - **Step auto-advance** — Navigation progresses automatically as you walk
@@ -27,14 +34,16 @@ Open on a mobile device with camera and GPS access.
 
 ## How It Works
 
-1. **Search** for a place or pick from your saved destinations
+1. **Search** for a place or paste coordinates (e.g. `-26.1340, 28.0690`)
 2. Tap **+ Save** to add a search result as a persistent tag
 3. Select a destination and tap **Navigate**
-4. Grant camera, GPS, and compass permissions
-5. A walking route is fetched from OSRM
-6. Follow the blue AR waypoint spheres through your camera
-7. The HUD shows turn-by-turn directions and live ETA
-8. Tap **Stop navigation** to go back and pick another destination
+4. Choose **Walking** or **Driving** mode
+5. Grant camera, GPS, and compass permissions
+6. A route is fetched from OSRM
+7. Follow the blue AR waypoint spheres through your camera
+8. The HUD shows turn-by-turn directions, street names, compass heading, speed, and live ETA
+9. Feel a subtle vibration as you reach each turn
+10. Tap **Stop navigation** to go back and pick another destination
 
 ## Configuration
 
@@ -71,10 +80,11 @@ Starts a local server on port 8080. Open on your phone (same Wi-Fi) to test. Cam
 |-----------|-------------|
 | [A-Frame](https://aframe.io/) | 3D/WebXR scene rendering |
 | [AR.js](https://ar-js-org.github.io/AR.js-Docs/) | Camera passthrough AR |
-| [OSRM](https://project-osrm.org/) | Free walking route API (no key) |
-| [Nominatim](https://nominatim.org/) | Free place search / geocoding (no key) |
-| Geolocation API | GPS tracking |
+| [OSRM](https://project-osrm.org/) | Free walking/driving route API (no key) |
+| [Nominatim](https://nominatim.org/) | Place search, geocoding, and reverse geocoding (no key) |
+| Geolocation API | GPS tracking + speed |
 | DeviceOrientation API | Compass heading |
+| Vibration API | Haptic feedback on step changes |
 | localStorage | Persistent user-added tags |
 
 ## Requirements

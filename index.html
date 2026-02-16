@@ -5,262 +5,157 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>AR Navigation</title>
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
 
         /* ── Start screen ── */
         #start-screen {
-            position: fixed;
-            inset: 0;
+            position: fixed; inset: 0;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 10000;
-            color: white;
-            text-align: center;
-            padding: 36px 16px 20px;
-            overflow-y: auto;
+            display: flex; flex-direction: column; align-items: center;
+            z-index: 10000; color: white; text-align: center;
+            padding: 36px 16px 20px; overflow-y: auto;
         }
         #start-screen h1 { font-size: 24px; margin-bottom: 4px; }
-        #start-screen .subtitle {
-            font-size: 13px;
-            opacity: 0.55;
-            margin-bottom: 18px;
-            max-width: 300px;
-        }
+        .subtitle { font-size: 13px; opacity: 0.55; margin-bottom: 18px; max-width: 300px; }
 
-        /* ── Search bar ── */
-        #search-wrap {
-            width: 100%;
-            max-width: 360px;
-            position: relative;
-            margin-bottom: 14px;
-        }
+        /* Search */
+        #search-wrap { width: 100%; max-width: 360px; position: relative; margin-bottom: 14px; }
         #search-input {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 14px;
-            border: 2px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.07);
-            color: white;
-            font-size: 15px;
-            outline: none;
-            transition: border-color 0.2s;
+            width: 100%; padding: 12px 16px; border-radius: 14px;
+            border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07);
+            color: white; font-size: 15px; outline: none;
         }
         #search-input::placeholder { color: rgba(255,255,255,0.35); }
         #search-input:focus { border-color: rgba(255,255,255,0.4); }
-        #search-status {
-            font-size: 12px;
-            color: #aaa;
-            margin-top: 6px;
-            display: none;
-        }
+        #search-hint { font-size: 11px; opacity: 0.35; margin-top: 4px; }
+        #search-status { font-size: 12px; color: #aaa; margin-top: 6px; display: none; }
 
-        /* ── Search results ── */
-        #search-results {
-            width: 100%;
-            max-width: 360px;
-            list-style: none;
-            margin-bottom: 10px;
-            display: none;
-        }
+        /* Search results */
+        #search-results { width: 100%; max-width: 360px; list-style: none; margin-bottom: 10px; display: none; }
         #search-results li {
-            background: rgba(0,191,255,0.1);
-            border: 2px solid rgba(0,191,255,0.25);
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            text-align: left;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: border-color 0.2s, background 0.2s;
+            background: rgba(0,191,255,0.1); border: 2px solid rgba(0,191,255,0.25);
+            border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+            text-align: left; display: flex; justify-content: space-between; align-items: center;
         }
-        #search-results li:active {
-            border-color: #00BFFF;
-            background: rgba(0,191,255,0.2);
-        }
+        #search-results li:active { border-color: #00BFFF; background: rgba(0,191,255,0.2); }
         .sr-name { font-size: 15px; font-weight: bold; }
         .sr-addr { font-size: 11px; opacity: 0.5; margin-top: 2px; }
         .sr-add-btn {
-            background: #00BFFF;
-            color: #000;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            flex-shrink: 0;
-            margin-left: 10px;
+            background: #00BFFF; color: #000; border: none; padding: 6px 12px;
+            border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer;
+            white-space: nowrap; flex-shrink: 0; margin-left: 10px;
         }
 
-        /* ── Section label ── */
+        /* Mode selector */
+        #mode-wrap {
+            width: 100%; max-width: 360px; display: flex; gap: 8px;
+            margin-bottom: 16px; justify-content: center;
+        }
+        .mode-btn {
+            flex: 1; padding: 10px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05); color: white; font-size: 14px;
+            cursor: pointer; text-align: center; transition: all 0.2s;
+        }
+        .mode-btn.active { border-color: #EF2D5E; background: rgba(239,45,94,0.15); }
+
         .section-label {
-            width: 100%;
-            max-width: 360px;
-            text-align: left;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.4;
-            margin-bottom: 8px;
+            width: 100%; max-width: 360px; text-align: left;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+            opacity: 0.4; margin-bottom: 8px;
         }
 
-        /* ── Destination list ── */
-        #dest-list {
-            width: 100%;
-            max-width: 360px;
-            list-style: none;
-            margin-bottom: 20px;
-        }
+        /* Destination list */
+        #dest-list { width: 100%; max-width: 360px; list-style: none; margin-bottom: 20px; }
         #dest-list li {
-            background: rgba(255,255,255,0.08);
-            border: 2px solid transparent;
-            border-radius: 14px;
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: border-color 0.2s, background 0.2s;
-            text-align: left;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: rgba(255,255,255,0.08); border: 2px solid transparent;
+            border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+            text-align: left; display: flex; justify-content: space-between; align-items: center;
         }
-        #dest-list li:active,
-        #dest-list li.selected {
-            border-color: #EF2D5E;
-            background: rgba(239,45,94,0.15);
+        #dest-list li:active, #dest-list li.selected {
+            border-color: #EF2D5E; background: rgba(239,45,94,0.15);
         }
         .dest-name { font-size: 15px; font-weight: bold; }
         .dest-coords { font-size: 11px; opacity: 0.5; margin-top: 2px; }
         .dest-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 10px; }
         .dest-dist { font-size: 13px; opacity: 0.7; white-space: nowrap; }
-        .dest-remove {
-            background: none;
-            border: none;
-            color: rgba(255,255,255,0.3);
-            font-size: 18px;
-            cursor: pointer;
-            padding: 2px 6px;
-            line-height: 1;
-        }
+        .dest-remove { background: none; border: none; color: rgba(255,255,255,0.3); font-size: 18px; cursor: pointer; padding: 2px 6px; }
         .dest-remove:active { color: #ff6b6b; }
-        .dest-tag {
-            font-size: 9px;
-            background: rgba(0,191,255,0.2);
-            color: #00BFFF;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 6px;
-        }
+        .dest-tag { font-size: 9px; background: rgba(0,191,255,0.2); color: #00BFFF; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
 
         #start-btn {
-            background: #EF2D5E;
-            color: white;
-            border: none;
-            padding: 14px 44px;
-            font-size: 19px;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: transform 0.2s, opacity 0.2s;
-            opacity: 0.4;
-            pointer-events: none;
-            margin-top: 4px;
+            background: #EF2D5E; color: white; border: none; padding: 14px 44px;
+            font-size: 19px; border-radius: 30px; cursor: pointer;
+            opacity: 0.4; pointer-events: none; margin-top: 4px;
         }
         #start-btn.ready { opacity: 1; pointer-events: auto; }
         #start-btn:active { transform: scale(0.95); }
+        #start-status { margin-top: 10px; font-size: 13px; color: #aaa; display: none; }
+        #start-error { margin-top: 8px; color: #ff6b6b; font-size: 13px; display: none; max-width: 320px; }
 
-        #start-status {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #aaa;
-            display: none;
-        }
-        #start-error {
-            margin-top: 8px;
-            color: #ff6b6b;
-            font-size: 13px;
-            display: none;
-            max-width: 320px;
-        }
-
-        /* ── HUD overlay ── */
+        /* ── HUD ── */
         #hud {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            padding: 16px 12px 0;
-            pointer-events: none;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+            display: none; flex-direction: column; align-items: center;
+            padding: 14px 10px 0; pointer-events: none;
         }
-        #hud-dest {
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px 22px;
-            border-radius: 20px;
-            text-align: center;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            margin-bottom: 8px;
+        .hud-card {
+            background: rgba(0,0,0,0.72); color: white; border-radius: 16px;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            padding: 10px 18px; margin-bottom: 6px; text-align: center;
+            max-width: 340px; width: 100%;
         }
-        #hud-dest .dest-title { font-size: 18px; font-weight: bold; }
-        #hud-dest .dest-eta { font-size: 13px; opacity: 0.7; margin-top: 2px; }
-        #hud-step {
-            background: rgba(0,0,0,0.65);
-            color: white;
-            padding: 8px 18px;
-            border-radius: 14px;
-            font-size: 15px;
-            text-align: center;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
-        #hud-step .step-icon { font-size: 22px; }
+        #hud-title { font-size: 17px; font-weight: bold; }
+        #hud-eta { font-size: 12px; opacity: 0.65; margin-top: 2px; }
+        #hud-street { font-size: 12px; opacity: 0.5; margin-top: 2px; }
 
-        /* ── Back button ── */
+        /* Compass + direction row */
+        #hud-compass-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 6px; font-size: 13px;
+        }
+        #hud-heading { opacity: 0.8; }
+        #hud-speed { opacity: 0.6; font-size: 12px; }
+
+        /* Step card with arrow */
+        #hud-step-card { display: flex; align-items: center; gap: 10px; }
+        #nav-arrow {
+            width: 36px; height: 36px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px; transition: transform 0.3s;
+        }
+        #step-text { font-size: 14px; flex: 1; text-align: left; }
+
+        /* Back button */
         #back-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 10px 28px;
-            border-radius: 20px;
-            font-size: 15px;
-            cursor: pointer;
-            display: none;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; background: rgba(0,0,0,0.6); color: white;
+            border: 1px solid rgba(255,255,255,0.3); padding: 10px 28px;
+            border-radius: 20px; font-size: 15px; cursor: pointer; display: none;
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
         }
     </style>
 </head>
 <body>
 
-    <!-- ── Start screen ── -->
     <div id="start-screen">
         <h1>AR Navigation</h1>
         <p class="subtitle">Search for a place or pick a saved destination</p>
 
-        <!-- Search -->
         <div id="search-wrap">
-            <input type="text" id="search-input" placeholder="Search for a place..." autocomplete="off">
+            <input type="text" id="search-input" placeholder="Search place or enter lat, lng" autocomplete="off">
+            <div id="search-hint">e.g. "Sandton City" or "-26.1076, 28.0567"</div>
             <div id="search-status"></div>
         </div>
         <ul id="search-results"></ul>
 
-        <!-- Saved destinations -->
-        <div class="section-label" id="saved-label">Saved destinations</div>
+        <div id="mode-wrap">
+            <div class="mode-btn active" data-mode="foot">Walking</div>
+            <div class="mode-btn" data-mode="car">Driving</div>
+        </div>
+
+        <div class="section-label">Saved destinations</div>
         <ul id="dest-list"></ul>
 
         <button id="start-btn">Navigate</button>
@@ -268,25 +163,30 @@
         <div id="start-error"></div>
     </div>
 
-    <!-- ── HUD ── -->
     <div id="hud">
-        <div id="hud-dest">
-            <div class="dest-title" id="hud-title">--</div>
-            <div class="dest-eta" id="hud-eta">--</div>
+        <div class="hud-card">
+            <div id="hud-title">--</div>
+            <div id="hud-eta">--</div>
+            <div id="hud-street">--</div>
+            <div id="hud-compass-row">
+                <span id="hud-heading">--</span>
+                <span id="hud-speed">--</span>
+            </div>
         </div>
-        <div id="hud-step">
-            <span class="step-icon" id="step-icon"></span>
-            <span id="step-text">Calculating route...</span>
+        <div class="hud-card" id="hud-step-wrap">
+            <div id="hud-step-card">
+                <div id="nav-arrow">\u2191</div>
+                <div id="step-text">Calculating route...</div>
+            </div>
         </div>
     </div>
 
     <button id="back-btn">Stop navigation</button>
-
     <div id="scene-container"></div>
 
     <script>
     // ================================================================
-    //  DEFAULT LOCATIONS (JHB area)
+    //  DEFAULT LOCATIONS (JHB)
     // ================================================================
     var DEFAULT_LOCATIONS = [
         { name: 'Rosebank Mall',          lat: -26.1460, lng: 28.0436 },
@@ -296,23 +196,15 @@
         { name: 'The Zone @ Rosebank',    lat: -26.1468, lng: 28.0445 }
     ];
 
-    // ================================================================
-    //  LOAD / SAVE user-added tags from localStorage
-    // ================================================================
     var STORAGE_KEY = 'ar_nav_locations';
 
     function loadLocations() {
         var saved = [];
-        try {
-            var raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) saved = JSON.parse(raw);
-        } catch (e) {}
-        // Merge: defaults first, then user-saved (marked with .userAdded)
+        try { var raw = localStorage.getItem(STORAGE_KEY); if (raw) saved = JSON.parse(raw); } catch (e) {}
         var merged = DEFAULT_LOCATIONS.map(function (d) { return Object.assign({}, d); });
         saved.forEach(function (s) {
-            // Skip if already in defaults (by name)
-            var dup = merged.some(function (m) { return m.name === s.name; });
-            if (!dup) merged.push(Object.assign({ userAdded: true }, s));
+            if (!merged.some(function (m) { return m.name === s.name; }))
+                merged.push(Object.assign({ userAdded: true }, s));
         });
         return merged;
     }
@@ -330,27 +222,25 @@
     //  STATE
     // ================================================================
     var selectedIndex = -1;
-    var userLat = null;
-    var userLng = null;
-    var routeWaypoints = [];
-    var routeSteps = [];
-    var currentStepIndex = 0;
+    var userLat = null, userLng = null, userSpeed = null;
+    var routeWaypoints = [], routeSteps = [], currentStepIndex = 0;
     var searchTimer = null;
+    var travelMode = 'foot'; // 'foot' or 'car'
+    var currentStreet = '';
+    var prevStepIndex = -1; // for haptic
 
     // ================================================================
     //  HELPERS
     // ================================================================
     function haversine(lat1, lng1, lat2, lng2) {
-        var R = 6371000;
-        var dLat = (lat2 - lat1) * Math.PI / 180;
-        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
         var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                 Math.sin(dLng / 2) * Math.sin(dLng / 2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function bearing(lat1, lng1, lat2, lng2) {
+    function bearingTo(lat1, lng1, lat2, lng2) {
         var dLng = (lng2 - lng1) * Math.PI / 180;
         var r1 = lat1 * Math.PI / 180, r2 = lat2 * Math.PI / 180;
         var y = Math.sin(dLng) * Math.cos(r2);
@@ -358,53 +248,81 @@
         return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
     }
 
-    function fmtDist(m) {
-        return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km';
+    function fmtDist(m) { return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km'; }
+
+    function cardinal(deg) {
+        var dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+        return dirs[Math.round(deg / 45) % 8];
+    }
+
+    function fmtSpeed(ms) {
+        if (ms === null || ms === undefined || ms < 0) return '--';
+        if (travelMode === 'car') return Math.round(ms * 3.6) + ' km/h';
+        return (ms * 3.6).toFixed(1) + ' km/h';
     }
 
     function loadScript(src) {
         return new Promise(function (resolve, reject) {
             var s = document.createElement('script');
-            s.src = src;
-            s.onload = resolve;
+            s.src = src; s.onload = resolve;
             s.onerror = function () { reject(new Error('Failed to load ' + src)); };
             document.head.appendChild(s);
         });
     }
 
-    function escHtml(str) {
-        var d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-    }
+    function escHtml(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
     function stepInstruction(step) {
-        var mod = step.maneuver.modifier || '';
-        var type = step.maneuver.type || '';
-        if (type === 'depart') return 'Head ' + (mod || 'forward');
+        var mod = step.maneuver.modifier || '', type = step.maneuver.type || '';
+        var street = step.name || '';
+        var onto = street ? ' onto ' + street : '';
+        if (type === 'depart') return 'Head ' + (mod || 'forward') + onto;
         if (type === 'arrive') return 'You have arrived';
         if (type === 'turn' || type === 'end of road' || type === 'new name') {
-            if (mod.indexOf('left') !== -1) return 'Turn left';
-            if (mod.indexOf('right') !== -1) return 'Turn right';
-            return 'Continue ' + mod;
+            if (mod.indexOf('left') !== -1) return 'Turn left' + onto;
+            if (mod.indexOf('right') !== -1) return 'Turn right' + onto;
+            return 'Continue ' + mod + onto;
         }
-        if (type === 'continue' || type === 'straight') return 'Continue straight';
-        if (type === 'roundabout' || type === 'rotary') return 'Take the roundabout';
-        if (mod) return type.charAt(0).toUpperCase() + type.slice(1) + ' ' + mod;
-        return type.charAt(0).toUpperCase() + type.slice(1);
+        if (type === 'continue' || type === 'straight') return 'Continue straight' + onto;
+        if (type === 'roundabout' || type === 'rotary') return 'Take the roundabout' + onto;
+        if (mod) return type.charAt(0).toUpperCase() + type.slice(1) + ' ' + mod + onto;
+        return type.charAt(0).toUpperCase() + type.slice(1) + onto;
     }
 
     function stepIcon(step) {
-        var mod = step.maneuver.modifier || '';
-        var type = step.maneuver.type || '';
+        var mod = step.maneuver.modifier || '', type = step.maneuver.type || '';
         if (type === 'arrive') return '\u{1F3C1}';
         if (mod.indexOf('left') !== -1) return '\u21B0';
         if (mod.indexOf('right') !== -1) return '\u21B1';
         return '\u2191';
     }
 
+    // Haptic — subtle buzz
+    function haptic(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+    }
+
+    // Reverse geocode current position for street name
+    var reverseTimer = null;
+    function updateStreetName(lat, lng) {
+        clearTimeout(reverseTimer);
+        reverseTimer = setTimeout(function () {
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18', {
+                headers: { 'Accept-Language': 'en' }
+            }).then(function (r) { return r.json(); }).then(function (data) {
+                if (data.address) {
+                    currentStreet = data.address.road || data.address.pedestrian || data.address.footway || '';
+                    var suburb = data.address.suburb || data.address.neighbourhood || '';
+                    var streetText = currentStreet;
+                    if (suburb) streetText += (streetText ? ', ' : '') + suburb;
+                    document.getElementById('hud-street').textContent = streetText || '--';
+                }
+            }).catch(function () {});
+        }, 3000); // Max 1 request per 3s
+    }
+
     // ================================================================
-    //  SEARCH — Nominatim (free OpenStreetMap geocoding)
+    //  SEARCH — Nominatim + lat,lng parsing
     // ================================================================
     var searchInput = document.getElementById('search-input');
     var searchResultsEl = document.getElementById('search-results');
@@ -413,34 +331,62 @@
     searchInput.addEventListener('input', function () {
         clearTimeout(searchTimer);
         var q = searchInput.value.trim();
-        if (q.length < 3) {
+        if (q.length < 2) {
             searchResultsEl.style.display = 'none';
             searchStatusEl.style.display = 'none';
             return;
         }
         searchStatusEl.textContent = 'Searching...';
         searchStatusEl.style.display = 'block';
-        // Debounce 500ms
-        searchTimer = setTimeout(function () { doSearch(q); }, 500);
+        searchTimer = setTimeout(function () { doSearch(q); }, 600);
     });
 
+    function parseLatLng(str) {
+        // Match patterns like "-26.1340, 28.0690" or "-26.1340 28.0690"
+        var m = str.match(/^\s*(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)\s*$/);
+        if (m) {
+            var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+            if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) return { lat: lat, lng: lng };
+        }
+        return null;
+    }
+
     function doSearch(query) {
-        // Bias towards user location if available, otherwise JHB
+        // Check if input is lat,lng coordinates
+        var coords = parseLatLng(query);
+        if (coords) {
+            // Reverse geocode to get place name
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + coords.lat + '&lon=' + coords.lng + '&zoom=18', {
+                headers: { 'Accept-Language': 'en' }
+            }).then(function (r) { return r.json(); }).then(function (data) {
+                searchStatusEl.style.display = 'none';
+                var name = 'Pin (' + coords.lat.toFixed(4) + ', ' + coords.lng.toFixed(4) + ')';
+                var addr = '';
+                if (data.display_name) {
+                    name = data.display_name.split(',')[0];
+                    addr = data.display_name.split(',').slice(1, 3).join(',').trim();
+                }
+                renderSearchResults([{ lat: String(coords.lat), lon: String(coords.lng), display_name: name + ', ' + addr }]);
+            }).catch(function (err) {
+                searchStatusEl.textContent = 'Lookup error: ' + err.message;
+                searchStatusEl.style.display = 'block';
+            });
+            return;
+        }
+
+        // Text search via Nominatim
         var viewbox = '';
         if (userLat !== null) {
-            var d = 0.15; // ~15km box
+            var d = 0.15;
             viewbox = '&viewbox=' + (userLng - d) + ',' + (userLat + d) + ',' + (userLng + d) + ',' + (userLat - d) + '&bounded=0';
         } else {
-            // Default: JHB area
             viewbox = '&viewbox=27.9,-26.0,28.2,-26.3&bounded=0';
         }
 
-        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' +
+        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=' +
                   encodeURIComponent(query) + viewbox;
 
-        fetch(url, {
-            headers: { 'Accept-Language': 'en' }
-        })
+        fetch(url, { headers: { 'Accept-Language': 'en' } })
         .then(function (r) { return r.json(); })
         .then(function (results) {
             searchStatusEl.style.display = 'none';
@@ -461,13 +407,11 @@
     function renderSearchResults(results) {
         searchResultsEl.innerHTML = '';
         results.forEach(function (r) {
-            var lat = parseFloat(r.lat);
-            var lng = parseFloat(r.lon);
+            var lat = parseFloat(r.lat), lng = parseFloat(r.lon);
             var name = r.display_name.split(',')[0];
             var addr = r.display_name.split(',').slice(1, 3).join(',').trim();
             var distText = userLat !== null ? fmtDist(haversine(userLat, userLng, lat, lng)) : '';
 
-            // Check if already saved
             var alreadySaved = LOCATIONS.some(function (l) {
                 return Math.abs(l.lat - lat) < 0.0005 && Math.abs(l.lng - lng) < 0.0005;
             });
@@ -475,11 +419,9 @@
             var li = document.createElement('li');
             li.innerHTML =
                 '<div style="flex:1;min-width:0">' +
-                '  <div class="sr-name">' + escHtml(name) + '</div>' +
-                '  <div class="sr-addr">' + escHtml(addr) + (distText ? ' \u00B7 ' + distText : '') + '</div>' +
-                '</div>' +
-                (alreadySaved
-                    ? '<span style="font-size:12px;opacity:0.5;margin-left:10px">Saved</span>'
+                '<div class="sr-name">' + escHtml(name) + '</div>' +
+                '<div class="sr-addr">' + escHtml(addr) + (distText ? ' \u00B7 ' + distText : '') + '</div></div>' +
+                (alreadySaved ? '<span style="font-size:12px;opacity:0.5;margin-left:10px">Saved</span>'
                     : '<button class="sr-add-btn">+ Save</button>');
 
             if (!alreadySaved) {
@@ -490,12 +432,8 @@
                 });
             }
 
-            // Tap result to select it directly for navigation
             li.addEventListener('click', function () {
-                // Add if not saved, then select
-                if (!alreadySaved) {
-                    addLocation(name, lat, lng);
-                }
+                if (!alreadySaved) addLocation(name, lat, lng);
                 var idx = LOCATIONS.findIndex(function (l) {
                     return Math.abs(l.lat - lat) < 0.0005 && Math.abs(l.lng - lng) < 0.0005;
                 });
@@ -503,40 +441,38 @@
                 searchInput.value = '';
                 searchResultsEl.style.display = 'none';
             });
-
             searchResultsEl.appendChild(li);
         });
         searchResultsEl.style.display = '';
     }
 
     function addLocation(name, lat, lng) {
-        // Avoid duplicates
-        var dup = LOCATIONS.some(function (l) {
-            return Math.abs(l.lat - lat) < 0.0005 && Math.abs(l.lng - lng) < 0.0005;
-        });
-        if (dup) return;
-
+        if (LOCATIONS.some(function (l) { return Math.abs(l.lat - lat) < 0.0005 && Math.abs(l.lng - lng) < 0.0005; })) return;
         LOCATIONS.push({ name: name, lat: lat, lng: lng, userAdded: true });
-        saveUserLocations();
-        renderList();
-        updateListDistances();
+        saveUserLocations(); renderList(); updateListDistances();
     }
 
     function removeLocation(index) {
         LOCATIONS.splice(index, 1);
         saveUserLocations();
-        if (selectedIndex === index) {
-            selectedIndex = -1;
-            document.getElementById('start-btn').classList.remove('ready');
-        } else if (selectedIndex > index) {
-            selectedIndex--;
-        }
-        renderList();
-        updateListDistances();
+        if (selectedIndex === index) { selectedIndex = -1; document.getElementById('start-btn').classList.remove('ready'); }
+        else if (selectedIndex > index) selectedIndex--;
+        renderList(); updateListDistances();
     }
 
     // ================================================================
-    //  RENDER DESTINATION LIST
+    //  MODE SELECTOR
+    // ================================================================
+    document.querySelectorAll('.mode-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            travelMode = btn.getAttribute('data-mode');
+        });
+    });
+
+    // ================================================================
+    //  DESTINATION LIST
     // ================================================================
     var listEl = document.getElementById('dest-list');
 
@@ -545,35 +481,18 @@
         LOCATIONS.forEach(function (loc, i) {
             var li = document.createElement('li');
             if (i === selectedIndex) li.classList.add('selected');
-
-            var rightHtml =
-                '<div class="dest-right">' +
-                '  <span class="dest-dist" id="dist-' + i + '">--</span>' +
-                (loc.userAdded ? '<button class="dest-remove" data-idx="' + i + '">\u00D7</button>' : '') +
-                '</div>';
-
             li.innerHTML =
-                '<div style="flex:1;min-width:0">' +
-                '  <div class="dest-name">' + escHtml(loc.name) +
+                '<div style="flex:1;min-width:0"><div class="dest-name">' + escHtml(loc.name) +
                 (loc.userAdded ? '<span class="dest-tag">added</span>' : '') +
-                '  </div>' +
-                '  <div class="dest-coords">' + loc.lat.toFixed(4) + ', ' + loc.lng.toFixed(4) + '</div>' +
-                '</div>' +
-                rightHtml;
-
+                '</div><div class="dest-coords">' + loc.lat.toFixed(4) + ', ' + loc.lng.toFixed(4) + '</div></div>' +
+                '<div class="dest-right"><span class="dest-dist" id="dist-' + i + '">--</span>' +
+                (loc.userAdded ? '<button class="dest-remove" data-idx="' + i + '">\u00D7</button>' : '') + '</div>';
             li.addEventListener('click', function (e) {
                 if (e.target.classList.contains('dest-remove')) return;
                 selectDest(i);
             });
-
-            var removeBtn = li.querySelector('.dest-remove');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    removeLocation(i);
-                });
-            }
-
+            var rb = li.querySelector('.dest-remove');
+            if (rb) rb.addEventListener('click', function (e) { e.stopPropagation(); removeLocation(i); });
             listEl.appendChild(li);
         });
     }
@@ -581,10 +500,7 @@
 
     function selectDest(i) {
         selectedIndex = i;
-        var items = listEl.querySelectorAll('li');
-        items.forEach(function (li, j) {
-            li.classList.toggle('selected', j === i);
-        });
+        listEl.querySelectorAll('li').forEach(function (li, j) { li.classList.toggle('selected', j === i); });
         document.getElementById('start-btn').classList.add('ready');
     }
 
@@ -596,11 +512,10 @@
         });
     }
 
-    // GPS for list distances
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition(function (pos) {
-            userLat = pos.coords.latitude;
-            userLng = pos.coords.longitude;
+            userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+            userSpeed = pos.coords.speed;
             updateListDistances();
         }, function () {}, { enableHighAccuracy: true });
     }
@@ -609,25 +524,23 @@
     //  FETCH ROUTE FROM OSRM
     // ================================================================
     function fetchRoute(fromLat, fromLng, toLat, toLng) {
-        var url = 'https://router.project-osrm.org/route/v1/foot/' +
+        var profile = travelMode === 'car' ? 'car' : 'foot';
+        var url = 'https://router.project-osrm.org/route/v1/' + profile + '/' +
                   fromLng + ',' + fromLat + ';' + toLng + ',' + toLat +
                   '?overview=full&geometries=geojson&steps=true';
         return fetch(url).then(function (r) { return r.json(); }).then(function (data) {
             if (data.code !== 'Ok' || !data.routes.length) throw new Error('No route found');
             var route = data.routes[0];
-            routeWaypoints = route.geometry.coordinates.map(function (c) {
-                return { lat: c[1], lng: c[0] };
-            });
+            routeWaypoints = route.geometry.coordinates.map(function (c) { return { lat: c[1], lng: c[0] }; });
             routeSteps = route.legs[0].steps.map(function (s) {
                 return {
-                    instruction: stepInstruction(s),
-                    icon: stepIcon(s),
-                    distance: s.distance,
-                    lat: s.maneuver.location[1],
-                    lng: s.maneuver.location[0]
+                    instruction: stepInstruction(s), icon: stepIcon(s),
+                    distance: s.distance, name: s.name || '',
+                    lat: s.maneuver.location[1], lng: s.maneuver.location[0],
+                    bearing_after: s.maneuver.bearing_after
                 };
             });
-            currentStepIndex = 0;
+            currentStepIndex = 0; prevStepIndex = -1;
             return { distance: route.distance, duration: route.duration };
         });
     }
@@ -641,17 +554,14 @@
         var btn = document.getElementById('start-btn');
         var statusEl = document.getElementById('start-status');
         var errorEl = document.getElementById('start-error');
-        btn.disabled = true;
-        errorEl.style.display = 'none';
-        statusEl.style.display = 'block';
-        statusEl.textContent = 'Requesting permissions...';
+        btn.disabled = true; errorEl.style.display = 'none';
+        statusEl.style.display = 'block'; statusEl.textContent = 'Requesting permissions...';
 
         try {
             if (typeof DeviceOrientationEvent !== 'undefined' &&
                 typeof DeviceOrientationEvent.requestPermission === 'function') {
-                var response = await DeviceOrientationEvent.requestPermission();
-                if (response !== 'granted')
-                    throw new Error('Compass permission denied. Allow motion access.');
+                var resp = await DeviceOrientationEvent.requestPermission();
+                if (resp !== 'granted') throw new Error('Compass permission denied.');
             }
 
             statusEl.textContent = 'Accessing camera...';
@@ -659,13 +569,10 @@
             stream.getTracks().forEach(function (t) { t.stop(); });
 
             statusEl.textContent = 'Getting GPS fix...';
-            var pos = await new Promise(function (resolve, reject) {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true, timeout: 15000
-                });
+            var pos = await new Promise(function (res, rej) {
+                navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 15000 });
             });
-            userLat = pos.coords.latitude;
-            userLng = pos.coords.longitude;
+            userLat = pos.coords.latitude; userLng = pos.coords.longitude;
 
             statusEl.textContent = 'Fetching route...';
             var routeInfo = await fetchRoute(userLat, userLng, dest.lat, dest.lng);
@@ -677,39 +584,42 @@
             registerARComponent();
 
             var wpEntities = '';
-            var step = Math.max(1, Math.floor(routeWaypoints.length / 60));
-            for (var i = 0; i < routeWaypoints.length; i += step) {
-                wpEntities +=
-                    '<a-sphere class="wp" data-idx="' + i + '" ' +
-                    'radius="0.15" color="#00BFFF" opacity="0.8" visible="false"></a-sphere>';
+            var skip = Math.max(1, Math.floor(routeWaypoints.length / 60));
+            for (var i = 0; i < routeWaypoints.length; i += skip) {
+                wpEntities += '<a-sphere class="wp" data-idx="' + i + '" radius="0.15" color="#00BFFF" opacity="0.8" visible="false"></a-sphere>';
             }
 
             var pinLabel = dest.name.length > 12 ? dest.name.substring(0, 12) + '..' : dest.name;
             document.getElementById('scene-container').innerHTML =
-                '<a-scene vr-mode-ui="enabled: false" embedded ' +
-                'arjs="sourceType: webcam; debugUIEnabled: false;" ' +
-                'renderer="antialias: true; alpha: true" ar-route-nav>' +
-                '<a-entity camera></a-entity>' +
-                wpEntities +
+                '<a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;" renderer="antialias: true; alpha: true" ar-route-nav>' +
+                '<a-entity camera></a-entity>' + wpEntities +
                 '<a-entity id="destination-pin" visible="false">' +
-                '  <a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>' +
-                '  <a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>' +
-                '  <a-text value="' + pinLabel + '" align="center" position="0 1.75 0" color="#fff" scale="2 2 2"></a-text>' +
+                '<a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>' +
+                '<a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>' +
+                '<a-text value="' + pinLabel + '" align="center" position="0 1.75 0" color="#fff" scale="2 2 2"></a-text>' +
                 '</a-entity></a-scene>';
 
+            var modeLabel = travelMode === 'car' ? 'drive' : 'walk';
             document.getElementById('hud-title').textContent = dest.name;
             document.getElementById('hud-eta').textContent =
-                fmtDist(routeInfo.distance) + '  \u00B7  ~' + Math.round(routeInfo.duration / 60) + ' min walk';
+                fmtDist(routeInfo.distance) + '  \u00B7  ~' + Math.round(routeInfo.duration / 60) + ' min ' + modeLabel;
+            document.getElementById('hud-street').textContent = '--';
+            document.getElementById('hud-heading').textContent = '--';
+            document.getElementById('hud-speed').textContent = '--';
             document.getElementById('hud').style.display = 'flex';
             document.getElementById('back-btn').style.display = '';
             document.getElementById('start-screen').style.display = 'none';
 
+            // Initial street lookup
+            updateStreetName(userLat, userLng);
+
+            // Welcome haptic
+            haptic([50, 30, 50]);
+
         } catch (err) {
-            btn.disabled = false;
-            statusEl.style.display = 'none';
+            btn.disabled = false; statusEl.style.display = 'none';
             errorEl.textContent = err.message || 'Could not start AR.';
             errorEl.style.display = 'block';
-            console.error('AR start error:', err);
         }
     });
 
@@ -723,11 +633,8 @@
         document.getElementById('start-screen').style.display = '';
         document.getElementById('start-btn').disabled = false;
         document.getElementById('start-status').style.display = 'none';
-        routeWaypoints = [];
-        routeSteps = [];
-        currentStepIndex = 0;
-        renderList();
-        updateListDistances();
+        routeWaypoints = []; routeSteps = []; currentStepIndex = 0; prevStepIndex = -1;
+        renderList(); updateListDistances();
     });
 
     // ================================================================
@@ -736,8 +643,7 @@
     function registerARComponent() {
         AFRAME.registerComponent('ar-route-nav', {
             init: function () {
-                this.deviceHeading = undefined;
-                this.pos = null;
+                this.deviceHeading = undefined; this.pos = null;
                 this.watchId = navigator.geolocation.watchPosition(
                     this.onPosition.bind(this), function () {},
                     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
@@ -745,33 +651,26 @@
                 window.addEventListener('deviceorientation', this.onOrientation.bind(this));
                 window.addEventListener('deviceorientationabsolute', this.onOrientation.bind(this));
             },
-
-            remove: function () {
-                if (this.watchId !== undefined) navigator.geolocation.clearWatch(this.watchId);
-            },
+            remove: function () { if (this.watchId !== undefined) navigator.geolocation.clearWatch(this.watchId); },
 
             onPosition: function (p) {
                 this.pos = { lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude || 0 };
-                userLat = this.pos.lat;
-                userLng = this.pos.lng;
+                userLat = this.pos.lat; userLng = this.pos.lng;
+                userSpeed = p.coords.speed;
+                updateStreetName(this.pos.lat, this.pos.lng);
                 this.update3D();
             },
 
             onOrientation: function (e) {
-                if (e.absolute && e.alpha !== null) {
-                    this.deviceHeading = 360 - e.alpha;
-                } else if (e.webkitCompassHeading !== undefined) {
-                    this.deviceHeading = e.webkitCompassHeading;
-                } else if (e.alpha !== null) {
-                    this.deviceHeading = 360 - e.alpha;
-                }
+                if (e.absolute && e.alpha !== null) this.deviceHeading = 360 - e.alpha;
+                else if (e.webkitCompassHeading !== undefined) this.deviceHeading = e.webkitCompassHeading;
+                else if (e.alpha !== null) this.deviceHeading = 360 - e.alpha;
                 this.update3D();
             },
 
             update3D: function () {
                 if (!this.pos || this.deviceHeading === undefined) return;
-                var me = this.pos;
-                var head = this.deviceHeading;
+                var me = this.pos, head = this.deviceHeading;
 
                 // Advance step
                 if (routeSteps.length > 0 && currentStepIndex < routeSteps.length - 1) {
@@ -779,20 +678,40 @@
                     if (haversine(me.lat, me.lng, cs.lat, cs.lng) < 15) currentStepIndex++;
                 }
 
-                // HUD
+                // Haptic on step change
+                if (currentStepIndex !== prevStepIndex) {
+                    if (prevStepIndex >= 0) haptic([40, 20, 40]); // subtle double tap
+                    prevStepIndex = currentStepIndex;
+                }
+
+                // HUD updates
                 if (routeSteps.length > 0) {
                     var nextStep = routeSteps[Math.min(currentStepIndex + 1, routeSteps.length - 1)];
                     var distToNext = haversine(me.lat, me.lng, nextStep.lat, nextStep.lng);
-                    document.getElementById('step-icon').textContent = nextStep.icon;
+
                     document.getElementById('step-text').textContent =
                         nextStep.instruction + ' in ' + fmtDist(distToNext);
 
+                    // Arrow rotation: point towards next step maneuver
+                    var brngToNext = bearingTo(me.lat, me.lng, nextStep.lat, nextStep.lng);
+                    var arrowRot = ((brngToNext - head + 360) % 360);
+                    document.getElementById('nav-arrow').style.transform = 'rotate(' + arrowRot + 'deg)';
+
+                    // Dest totals
                     var dest = LOCATIONS[selectedIndex];
                     var totalDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
-                    var eta = totalDist / 1.4;
+                    var speed = (travelMode === 'car') ? 8.3 : 1.4; // ~30km/h or ~5km/h
+                    if (userSpeed > 0.5) speed = userSpeed;
+                    var eta = totalDist / speed;
+                    var modeLabel = travelMode === 'car' ? 'drive' : 'walk';
                     document.getElementById('hud-eta').textContent =
-                        fmtDist(totalDist) + '  \u00B7  ~' + Math.max(1, Math.round(eta / 60)) + ' min walk';
+                        fmtDist(totalDist) + '  \u00B7  ~' + Math.max(1, Math.round(eta / 60)) + ' min ' + modeLabel;
                 }
+
+                // Compass heading + speed
+                document.getElementById('hud-heading').textContent =
+                    cardinal(head) + ' ' + Math.round(head) + '\u00B0';
+                document.getElementById('hud-speed').textContent = fmtSpeed(userSpeed);
 
                 // Waypoint spheres
                 var wpEls = this.el.querySelectorAll('.wp');
@@ -800,19 +719,16 @@
                     var idx = parseInt(wpEls[i].getAttribute('data-idx'));
                     var wp = routeWaypoints[idx];
                     if (!wp) continue;
-
                     var dist = haversine(me.lat, me.lng, wp.lat, wp.lng);
-                    var brng = bearing(me.lat, me.lng, wp.lat, wp.lng);
+                    var brng = bearingTo(me.lat, me.lng, wp.lat, wp.lng);
                     var rel = ((brng - head + 360) % 360);
                     var inFov = rel < 40 || rel > 320;
-
                     if (dist < 200 && inFov) {
-                        var rad = rel < 180 ? rel : rel - 360;
-                        var radRad = rad * Math.PI / 180;
+                        var rad = (rel < 180 ? rel : rel - 360) * Math.PI / 180;
                         var zDist = Math.min(20, dist / 5);
                         wpEls[i].setAttribute('visible', true);
                         wpEls[i].setAttribute('position', {
-                            x: Math.sin(radRad) * zDist, y: -0.5, z: -Math.cos(radRad) * zDist
+                            x: Math.sin(rad) * zDist, y: -0.5, z: -Math.cos(rad) * zDist
                         });
                         wpEls[i].setAttribute('color', dist < 10 ? '#00FF88' : '#00BFFF');
                     } else {
@@ -823,10 +739,9 @@
                 // Destination pin
                 var dest = LOCATIONS[selectedIndex];
                 var destDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
-                var destBrng = bearing(me.lat, me.lng, dest.lat, dest.lng);
+                var destBrng = bearingTo(me.lat, me.lng, dest.lat, dest.lng);
                 var destRel = ((destBrng - head + 360) % 360);
                 var destInView = destRel < 20 || destRel > 340;
-
                 var pin = document.getElementById('destination-pin');
                 if (pin) {
                     pin.setAttribute('visible', destInView && destDist < 2000);
