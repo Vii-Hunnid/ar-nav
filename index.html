@@ -121,11 +121,23 @@
         /* Step card with arrow */
         #hud-step-card { display: flex; align-items: center; gap: 10px; }
 
+        /* ── BIG CENTERED ARROW ── */
+        #center-arrow-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9998;
+            display: none;
+            pointer-events: none;
+        }
+        
         /* Base style (already provided) */
         #nav-arrow {
             width: 36px; height: 36px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             font-size: 26px; transition: transform 0.3s;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
         }
         /* Directional rotations */
         .arrow-right { transform: rotate(90deg); }
@@ -186,9 +198,13 @@
             <div id="hud-step-card">
                 <div id="nav-arrow">&uarr;</div>
                 <div id="step-text">Calculating route...</div>
-                <div id="nav-arrow">&#x2191;</div>
             </div>
         </div>
+    </div>
+
+    <!-- BIG CENTERED ARROW -->
+    <div id="center-arrow-container">
+        <div id="nav-arrow">↑</div>
     </div>
 
     <button id="back-btn">Stop navigation</button>
@@ -617,6 +633,7 @@
             document.getElementById('hud-heading').textContent = '--';
             document.getElementById('hud-speed').textContent = '--';
             document.getElementById('hud').style.display = 'flex';
+            document.getElementById('center-arrow-container').style.display = 'block';
             document.getElementById('back-btn').style.display = '';
             document.getElementById('start-screen').style.display = 'none';
 
@@ -639,6 +656,7 @@
     document.getElementById('back-btn').addEventListener('click', function () {
         document.getElementById('scene-container').innerHTML = '';
         document.getElementById('hud').style.display = 'none';
+        document.getElementById('center-arrow-container').style.display = 'none';
         document.getElementById('back-btn').style.display = 'none';
         document.getElementById('start-screen').style.display = '';
         document.getElementById('start-btn').disabled = false;
