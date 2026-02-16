@@ -3,11 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="content="yes">
     <title>AR Navigation</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 
         /* ── Start screen ── */
         #start-screen {
@@ -104,7 +104,7 @@
             background: rgba(0,0,0,0.72); color: white; border-radius: 16px;
             backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
             padding: 10px 18px; margin-bottom: 6px; text-align: center;
-            max-width: 340px; width: 100%;
+            max-width: 340px; width: 100%; pointer-events: auto;
         }
         #hud-title { font-size: 17px; font-weight: bold; }
         #hud-eta { font-size: 12px; opacity: 0.65; margin-top: 2px; }
@@ -124,7 +124,7 @@
         /* ── BIG CENTERED ARROW ── */
         #center-arrow-container {
             position: fixed;
-            top: 50%;
+            top: 35%; /* Moved up from center */
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 9998;
@@ -132,21 +132,135 @@
             pointer-events: none;
         }
         
-        /* Base style (already provided) */
+        /* Enhanced bolder arrow */
+        #big-arrow {
+            width: 120px;
+            height: 120px;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6));
+            transition: transform 0.3s ease, color 0.3s;
+        }
+        
+        #big-arrow svg {
+            width: 100%;
+            height: 100%;
+            fill: #00BFFF;
+            stroke: white;
+            stroke-width: 3px;
+        }
+
+        #big-arrow.recalculating {
+            animation: pulse-recalc 1s infinite;
+        }
+
+        @keyframes pulse-recalc {
+            0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.95); }
+        }
+
+        /* Navigation arrow in HUD */
         #nav-arrow {
             width: 36px; height: 36px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             font-size: 26px; transition: transform 0.3s;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
         }
-        /* Directional rotations */
-        .arrow-right { transform: rotate(90deg); }
-        .arrow-down  { transform: rotate(180deg); }
-        .arrow-left  { transform: rotate(-90deg); }
-        .arrow-up    { transform: rotate(0deg); }
-
         
         #step-text { font-size: 14px; flex: 1; text-align: left; }
+
+        /* ── SETTINGS PANEL ── */
+        #settings-btn {
+            position: fixed; top: 14px; right: 10px;
+            z-index: 10000; background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.3); color: white;
+            width: 36px; height: 36px; border-radius: 50%;
+            font-size: 18px; cursor: pointer; display: none;
+            backdrop-filter: blur(5px);
+        }
+
+        #settings-panel {
+            position: fixed; top: 60px; right: 10px;
+            background: rgba(0,0,0,0.9); border-radius: 16px;
+            padding: 16px; z-index: 10001; display: none;
+            min-width: 200px; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .setting-item {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; color: white; font-size: 14px;
+        }
+
+        .setting-item:last-child { margin-bottom: 0; }
+
+        .toggle {
+            width: 44px; height: 24px; background: rgba(255,255,255,0.2);
+            border-radius: 12px; position: relative; cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active { background: #00BFFF; }
+
+        .toggle::after {
+            content: ''; position: absolute; width: 20px; height: 20px;
+            background: white; border-radius: 50%; top: 2px; left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active::after { transform: translateX(20px); }
+
+        /* ── ROUTE PATH OVERLAY ── */
+        #route-path-card {
+            position: fixed; bottom: 80px; left: 50%;
+            transform: translateX(-50%); z-index: 9997;
+            background: rgba(0,0,0,0.85); color: white;
+            border-radius: 16px; padding: 16px; display: none;
+            max-width: 90%; width: 320px; max-height: 60vh;
+            overflow-y: auto; backdrop-filter: blur(10px);
+        }
+
+        .route-step-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .route-step-item:last-child { border-bottom: none; }
+
+        .route-step-item.current {
+            background: rgba(0,191,255,0.2); margin: 0 -16px; padding: 10px 16px;
+        }
+
+        .step-icon { font-size: 20px; width: 30px; text-align: center; }
+
+        .step-info { flex: 1; }
+
+        .step-name { font-size: 14px; font-weight: 500; }
+
+        .step-dist { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+
+        /* ── RECALCULATING TOAST ── */
+        #recalc-toast {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(239,45,94,0.95); color: white;
+            padding: 16px 32px; border-radius: 30px;
+            font-size: 16px; font-weight: bold;
+            z-index: 10002; display: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        /* ── AR CARDS / PINS ── */
+        .ar-card {
+            position: absolute; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); border: 2px solid #00BFFF;
+            border-radius: 12px; padding: 12px; color: white;
+            min-width: 150px; max-width: 200px;
+            backdrop-filter: blur(5px);
+        }
+
+        .ar-card-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+
+        .ar-card-desc { font-size: 12px; opacity: 0.8; }
+
+        .ar-card-dist { font-size: 11px; color: #00BFFF; margin-top: 6px; }
 
         /* Back button */
         #back-btn {
@@ -156,13 +270,68 @@
             border-radius: 20px; font-size: 15px; cursor: pointer; display: none;
             backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
         }
+
+        #view-path-btn {
+            position: fixed; bottom: 30px; left: 20px;
+            z-index: 9999; background: rgba(0,0,0,0.6); color: white;
+            border: 1px solid rgba(255,255,255,0.3); padding: 10px 20px;
+            border-radius: 20px; font-size: 14px; cursor: pointer; display: none;
+            backdrop-filter: blur(5px);
+        }
+
+        #close-path-btn {
+            position: absolute; top: 10px; right: 10px;
+            background: none; border: none; color: white;
+            font-size: 20px; cursor: pointer; opacity: 0.7;
+        }
+
+        /* ── USER POI FORM ── */
+        #poi-form {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(26,26,46,0.98); border-top: 1px solid rgba(255,255,255,0.2);
+            padding: 20px; z-index: 10003; display: none;
+            border-radius: 20px 20px 0 0;
+        }
+
+        #poi-form h3 { color: white; margin-bottom: 12px; font-size: 18px; }
+
+        .poi-input {
+            width: 100%; padding: 12px; margin-bottom: 10px;
+            border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1); color: white; font-size: 15px;
+        }
+
+        .poi-input::placeholder { color: rgba(255,255,255,0.4); }
+
+        .poi-buttons {
+            display: flex; gap: 10px; margin-top: 10px;
+        }
+
+        .poi-btn {
+            flex: 1; padding: 12px; border-radius: 10px;
+            border: none; font-size: 15px; cursor: pointer;
+        }
+
+        .poi-btn.primary { background: #00BFFF; color: #000; font-weight: bold; }
+
+        .poi-btn.secondary { background: rgba(255,255,255,0.1); color: white; }
+
+        /* Add POI button on start screen */
+        #add-poi-btn {
+            background: rgba(0,191,255,0.2); border: 2px solid #00BFFF;
+            color: #00BFFF; padding: 10px 20px; border-radius: 12px;
+            font-size: 14px; cursor: pointer; margin-bottom: 16px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <h1>AR Navigation</h1>
-        <p class="subtitle">Search for a place or pick a saved destination</p>
+        <p class="subtitle">Search for a place, add custom pins, or pick a saved destination</p>
+
+        <button id="add-poi-btn">+ Add Custom Pin</button>
 
         <div id="search-wrap">
             <input type="text" id="search-input" placeholder="Search place or enter lat, lng" autocomplete="off">
@@ -182,6 +351,39 @@
         <button id="start-btn">Navigate</button>
         <div id="start-status"></div>
         <div id="start-error"></div>
+    </div>
+
+    <!-- POI Form -->
+    <div id="poi-form">
+        <h3>Add Custom Location Pin</h3>
+        <input type="text" id="poi-name" class="poi-input" placeholder="Name (e.g. My Office)">
+        <input type="text" id="poi-coords" class="poi-input" placeholder="Coordinates: -26.1340, 28.0690">
+        <input type="text" id="poi-notes" class="poi-input" placeholder="Notes (optional)">
+        <div class="poi-buttons">
+            <button class="poi-btn secondary" onclick="closePoiForm()">Cancel</button>
+            <button class="poi-btn primary" onclick="savePoi()">Save Pin</button>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <button id="settings-btn">⚙️</button>
+    <div id="settings-panel">
+        <div class="setting-item">
+            <span>Camera AR</span>
+            <div class="toggle active" id="toggle-camera" onclick="toggleSetting('camera')"></div>
+        </div>
+        <div class="setting-item">
+            <span>Voice Guidance</span>
+            <div class="toggle active" id="toggle-voice" onclick="toggleSetting('voice')"></div>
+        </div>
+        <div class="setting-item">
+            <span>Haptic Feedback</span>
+            <div class="toggle active" id="toggle-haptic" onclick="toggleSetting('haptic')"></div>
+        </div>
+        <div class="setting-item">
+            <span>Show POI Cards</span>
+            <div class="toggle active" id="toggle-poi" onclick="toggleSetting('poi')"></div>
+        </div>
     </div>
 
     <div id="hud">
@@ -204,15 +406,30 @@
 
     <!-- BIG CENTERED ARROW -->
     <div id="center-arrow-container">
-        <div id="nav-arrow">↑</div>
+        <div id="big-arrow">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+            </svg>
+        </div>
     </div>
 
+    <!-- Route Path Card -->
+    <div id="route-path-card">
+        <button id="close-path-btn" onclick="toggleRoutePath()">×</button>
+        <div style="font-size: 16px; font-weight: bold; margin-bottom: 12px;">Full Route</div>
+        <div id="route-steps-list"></div>
+    </div>
+
+    <!-- Recalculating Toast -->
+    <div id="recalc-toast">↻ Recalculating route...</div>
+
     <button id="back-btn">Stop navigation</button>
+    <button id="view-path-btn" onclick="toggleRoutePath()">View Path</button>
     <div id="scene-container"></div>
 
     <script>
     // ================================================================
-    //  DEFAULT LOCATIONS (JHB)
+    //  CONFIGURATION & STATE
     // ================================================================
     var DEFAULT_LOCATIONS = [
         { name: 'Rosebank Mall',          lat: -26.1460, lng: 28.0436 },
@@ -223,21 +440,118 @@
     ];
 
     var STORAGE_KEY = 'ar_nav_locations';
+    var SETTINGS_KEY = 'ar_nav_settings';
+    var USER_POIS_KEY = 'ar_nav_pois';
 
+    // Settings with defaults
+    var settings = {
+        camera: true,
+        voice: true,
+        haptic: true,
+        poi: true
+    };
+
+    // Load settings
+    try {
+        var savedSettings = localStorage.getItem(SETTINGS_KEY);
+        if (savedSettings) settings = JSON.parse(savedSettings);
+    } catch (e) {}
+
+    function saveSettings() {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+    }
+
+    function toggleSetting(key) {
+        settings[key] = !settings[key];
+        document.getElementById('toggle-' + key).classList.toggle('active', settings[key]);
+        saveSettings();
+        
+        // Immediate effects
+        if (key === 'camera') toggleCameraMode();
+        if (key === 'voice' && !settings.voice) window.speechSynthesis.cancel();
+    }
+
+    // Initialize toggles
+    Object.keys(settings).forEach(function(key) {
+        var el = document.getElementById('toggle-' + key);
+        if (el) el.classList.toggle('active', settings[key]);
+    });
+
+    // ================================================================
+    //  USER POIs (Points of Interest)
+    // ================================================================
+    var userPois = [];
+    try {
+        var savedPois = localStorage.getItem(USER_POIS_KEY);
+        if (savedPois) userPois = JSON.parse(savedPois);
+    } catch (e) {}
+
+    function saveUserPois() {
+        try { localStorage.setItem(USER_POIS_KEY, JSON.stringify(userPois)); } catch (e) {}
+    }
+
+    document.getElementById('add-poi-btn').addEventListener('click', function() {
+        document.getElementById('poi-form').style.display = 'block';
+    });
+
+    function closePoiForm() {
+        document.getElementById('poi-form').style.display = 'none';
+        document.getElementById('poi-name').value = '';
+        document.getElementById('poi-coords').value = '';
+        document.getElementById('poi-notes').value = '';
+    }
+
+    function savePoi() {
+        var name = document.getElementById('poi-name').value.trim();
+        var coordsStr = document.getElementById('poi-coords').value.trim();
+        var notes = document.getElementById('poi-notes').value.trim();
+        
+        if (!name || !coordsStr) {
+            alert('Please enter name and coordinates');
+            return;
+        }
+        
+        var coords = parseLatLng(coordsStr);
+        if (!coords) {
+            alert('Invalid coordinates format. Use: -26.1340, 28.0690');
+            return;
+        }
+        
+        var poi = {
+            id: Date.now(),
+            name: name,
+            lat: coords.lat,
+            lng: coords.lng,
+            notes: notes,
+            color: '#' + Math.floor(Math.random()*16777215).toString(16),
+            createdAt: new Date().toISOString()
+        };
+        
+        userPois.push(poi);
+        saveUserPois();
+        closePoiForm();
+        
+        // Add to destinations temporarily for navigation
+        addLocation(name, coords.lat, coords.lng, notes);
+    }
+
+    // ================================================================
+    //  LOCATIONS MANAGEMENT
+    // ================================================================
     function loadLocations() {
         var saved = [];
         try { var raw = localStorage.getItem(STORAGE_KEY); if (raw) saved = JSON.parse(raw); } catch (e) {}
         var merged = DEFAULT_LOCATIONS.map(function (d) { return Object.assign({}, d); });
         saved.forEach(function (s) {
             if (!merged.some(function (m) { return m.name === s.name; }))
-                merged.push(Object.assign({ userAdded: true }, s));
+                merged.push(Object.assign({ userAdded: true, notes: s.notes }, s));
         });
         return merged;
     }
 
     function saveUserLocations() {
         var toSave = LOCATIONS.filter(function (l) { return l.userAdded; }).map(function (l) {
-            return { name: l.name, lat: l.lat, lng: l.lng };
+            return { name: l.name, lat: l.lat, lng: l.notes, notes: l.notes };
         });
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave)); } catch (e) {}
     }
@@ -245,15 +559,69 @@
     var LOCATIONS = loadLocations();
 
     // ================================================================
-    //  STATE
+    //  NAVIGATION STATE
     // ================================================================
     var selectedIndex = -1;
     var userLat = null, userLng = null, userSpeed = null;
+    var userHeading = null; // GPS-based heading from movement
+    var deviceHeading = null; // Compass heading
     var routeWaypoints = [], routeSteps = [], currentStepIndex = 0;
     var searchTimer = null;
-    var travelMode = 'foot'; // 'foot' or 'car'
+    var travelMode = 'foot';
     var currentStreet = '';
-    var prevStepIndex = -1; // for haptic
+    var prevStepIndex = -1;
+    var isNavigating = false;
+    var lastRecalcTime = 0;
+    var routeDeviationCount = 0;
+    var cameraActive = true;
+    var synth = window.speechSynthesis;
+    var lastSpokenStep = -1;
+
+    // ================================================================
+    //  VOICE SYNTHESIS
+    // ================================================================
+    function speak(text, priority) {
+        if (!settings.voice || !synth) return;
+        
+        // Cancel current speech if urgent
+        if (priority === 'urgent') {
+            synth.cancel();
+        } else if (synth.speaking) {
+            return; // Don't interrupt normal speech
+        }
+        
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Try to use a good English voice
+        var voices = synth.getVoices();
+        var preferredVoice = voices.find(function(v) { 
+            return v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel');
+        });
+        if (preferredVoice) utterance.voice = preferredVoice;
+        
+        synth.speak(utterance);
+    }
+
+    function announceStep(stepIndex, distance) {
+        if (stepIndex === lastSpokenStep) return;
+        lastSpokenStep = stepIndex;
+        
+        if (!routeSteps[stepIndex]) return;
+        var step = routeSteps[stepIndex];
+        var text = step.instruction;
+        
+        // Add distance context for upcoming turns
+        if (distance > 50) {
+            text = 'In ' + fmtDist(distance) + ', ' + text;
+        } else {
+            text = 'Now, ' + text;
+        }
+        
+        speak(text, stepIndex === 0 ? 'urgent' : 'normal');
+    }
 
     // ================================================================
     //  HELPERS
@@ -303,7 +671,7 @@
         var street = step.name || '';
         var onto = street ? ' onto ' + street : '';
         if (type === 'depart') return 'Head ' + (mod || 'forward') + onto;
-        if (type === 'arrive') return 'You have arrived';
+        if (type === 'arrive') return 'You have arrived at ' + (street || 'your destination');
         if (type === 'turn' || type === 'end of road' || type === 'new name') {
             if (mod.indexOf('left') !== -1) return 'Turn left' + onto;
             if (mod.indexOf('right') !== -1) return 'Turn right' + onto;
@@ -317,18 +685,90 @@
 
     function stepIcon(step) {
         var mod = step.maneuver.modifier || '', type = step.maneuver.type || '';
-        if (type === 'arrive') return '\u{1F3C1}';
-        if (mod.indexOf('left') !== -1) return '\u21B0';
-        if (mod.indexOf('right') !== -1) return '\u21B1';
-        return '\u2191';
+        if (type === 'arrive') return '🏁';
+        if (mod.indexOf('left') !== -1) return '↰';
+        if (mod.indexOf('right') !== -1) return '↱';
+        if (type === 'roundabout' || type === 'rotary') return '↻';
+        return '↑';
     }
 
-    // Haptic — subtle buzz
     function haptic(pattern) {
-        if (navigator.vibrate) navigator.vibrate(pattern);
+        if (settings.haptic && navigator.vibrate) navigator.vibrate(pattern);
     }
 
-    // Reverse geocode current position for street name
+    // ================================================================
+    //  ROUTE RECALCULATION LOGIC
+    // ================================================================
+    function checkRouteDeviation() {
+        if (!isNavigating || !routeSteps.length || currentStepIndex >= routeSteps.length - 1) return;
+        
+        var nextStep = routeSteps[currentStepIndex + 1];
+        var distToNext = haversine(userLat, userLng, nextStep.lat, nextStep.lng);
+        
+        // Check if we're moving away from the next waypoint
+        if (distToNext > 100) { // More than 100m from expected path
+            routeDeviationCount++;
+            
+            // Trigger recalculation if consistently off-route
+            if (routeDeviationCount > 3) {
+                recalculateRoute();
+            }
+        } else {
+            routeDeviationCount = Math.max(0, routeDeviationCount - 1);
+        }
+    }
+
+    function recalculateRoute() {
+        var now = Date.now();
+        if (now - lastRecalcTime < 5000) return; // Debounce: max every 5 seconds
+        lastRecalcTime = now;
+        
+        var dest = LOCATIONS[selectedIndex];
+        if (!dest) return;
+        
+        // Show recalculating UI
+        document.getElementById('recalc-toast').style.display = 'block';
+        document.getElementById('big-arrow').classList.add('recalculating');
+        speak('Recalculating route', 'urgent');
+        haptic([100, 50, 100]);
+        
+        fetchRoute(userLat, userLng, dest.lat, dest.lng, true).then(function(routeInfo) {
+            document.getElementById('recalc-toast').style.display = 'none';
+            document.getElementById('big-arrow').classList.remove('recalculating');
+            currentStepIndex = 0;
+            lastSpokenStep = -1;
+            routeDeviationCount = 0;
+            
+            speak('Route recalculated. Continue for ' + fmtDist(routeSteps[1] ? routeSteps[1].distance : routeInfo.distance), 'normal');
+            updateRoutePathUI();
+        }).catch(function(err) {
+            document.getElementById('recalc-toast').style.display = 'none';
+            document.getElementById('big-arrow').classList.remove('recalculating');
+        });
+    }
+
+    // ================================================================
+    //  CAMERA TOGGLE
+    // ================================================================
+    function toggleCameraMode() {
+        var scene = document.querySelector('a-scene');
+        var bigArrow = document.getElementById('center-arrow-container');
+        
+        if (!settings.camera) {
+            // Camera off mode: Big arrow only
+            if (scene) scene.style.display = 'none';
+            bigArrow.style.display = 'block';
+            cameraActive = false;
+        } else {
+            // Camera on mode
+            if (scene) scene.style.display = '';
+            cameraActive = true;
+        }
+    }
+
+    // ================================================================
+    //  REVERSE GEOCODING
+    // ================================================================
     var reverseTimer = null;
     function updateStreetName(lat, lng) {
         clearTimeout(reverseTimer);
@@ -344,11 +784,11 @@
                     document.getElementById('hud-street').textContent = streetText || '--';
                 }
             }).catch(function () {});
-        }, 3000); // Max 1 request per 3s
+        }, 3000);
     }
 
     // ================================================================
-    //  SEARCH — Nominatim + lat,lng parsing
+    //  SEARCH
     // ================================================================
     var searchInput = document.getElementById('search-input');
     var searchResultsEl = document.getElementById('search-results');
@@ -368,7 +808,6 @@
     });
 
     function parseLatLng(str) {
-        // Match patterns like "-26.1340, 28.0690" or "-26.1340 28.0690"
         var m = str.match(/^\s*(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)\s*$/);
         if (m) {
             var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
@@ -378,10 +817,8 @@
     }
 
     function doSearch(query) {
-        // Check if input is lat,lng coordinates
         var coords = parseLatLng(query);
         if (coords) {
-            // Reverse geocode to get place name
             fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + coords.lat + '&lon=' + coords.lng + '&zoom=18', {
                 headers: { 'Accept-Language': 'en' }
             }).then(function (r) { return r.json(); }).then(function (data) {
@@ -400,7 +837,6 @@
             return;
         }
 
-        // Text search via Nominatim
         var viewbox = '';
         if (userLat !== null) {
             var d = 0.15;
@@ -446,7 +882,7 @@
             li.innerHTML =
                 '<div style="flex:1;min-width:0">' +
                 '<div class="sr-name">' + escHtml(name) + '</div>' +
-                '<div class="sr-addr">' + escHtml(addr) + (distText ? ' \u00B7 ' + distText : '') + '</div></div>' +
+                '<div class="sr-addr">' + escHtml(addr) + (distText ? ' · ' + distText : '') + '</div></div>' +
                 (alreadySaved ? '<span style="font-size:12px;opacity:0.5;margin-left:10px">Saved</span>'
                     : '<button class="sr-add-btn">+ Save</button>');
 
@@ -472,9 +908,9 @@
         searchResultsEl.style.display = '';
     }
 
-    function addLocation(name, lat, lng) {
+    function addLocation(name, lat, lng, notes) {
         if (LOCATIONS.some(function (l) { return Math.abs(l.lat - lat) < 0.0005 && Math.abs(l.lng - lng) < 0.0005; })) return;
-        LOCATIONS.push({ name: name, lat: lat, lng: lng, userAdded: true });
+        LOCATIONS.push({ name: name, lat: lat, lng: lng, userAdded: true, notes: notes });
         saveUserLocations(); renderList(); updateListDistances();
     }
 
@@ -512,7 +948,7 @@
                 (loc.userAdded ? '<span class="dest-tag">added</span>' : '') +
                 '</div><div class="dest-coords">' + loc.lat.toFixed(4) + ', ' + loc.lng.toFixed(4) + '</div></div>' +
                 '<div class="dest-right"><span class="dest-dist" id="dist-' + i + '">--</span>' +
-                (loc.userAdded ? '<button class="dest-remove" data-idx="' + i + '">\u00D7</button>' : '') + '</div>';
+                (loc.userAdded ? '<button class="dest-remove" data-idx="' + i + '">×</button>' : '') + '</div>';
             li.addEventListener('click', function (e) {
                 if (e.target.classList.contains('dest-remove')) return;
                 selectDest(i);
@@ -542,18 +978,26 @@
         navigator.geolocation.watchPosition(function (pos) {
             userLat = pos.coords.latitude; userLng = pos.coords.longitude;
             userSpeed = pos.coords.speed;
+            
+            // Calculate GPS-based heading from movement
+            if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
+                userHeading = pos.coords.heading;
+            }
+            
             updateListDistances();
+            if (isNavigating) checkRouteDeviation();
         }, function () {}, { enableHighAccuracy: true });
     }
 
     // ================================================================
-    //  FETCH ROUTE FROM OSRM
+    //  FETCH ROUTE
     // ================================================================
-    function fetchRoute(fromLat, fromLng, toLat, toLng) {
+    function fetchRoute(fromLat, fromLng, toLat, toLng, isRecalc) {
         var profile = travelMode === 'car' ? 'car' : 'foot';
         var url = 'https://router.project-osrm.org/route/v1/' + profile + '/' +
                   fromLng + ',' + fromLat + ';' + toLng + ',' + toLat +
                   '?overview=full&geometries=geojson&steps=true';
+        
         return fetch(url).then(function (r) { return r.json(); }).then(function (data) {
             if (data.code !== 'Ok' || !data.routes.length) throw new Error('No route found');
             var route = data.routes[0];
@@ -566,8 +1010,41 @@
                     bearing_after: s.maneuver.bearing_after
                 };
             });
-            currentStepIndex = 0; prevStepIndex = -1;
+            
+            if (!isRecalc) {
+                currentStepIndex = 0; prevStepIndex = -1; lastSpokenStep = -1;
+            }
             return { distance: route.distance, duration: route.duration };
+        });
+    }
+
+    // ================================================================
+    //  ROUTE PATH UI
+    // ================================================================
+    function toggleRoutePath() {
+        var card = document.getElementById('route-path-card');
+        if (card.style.display === 'block') {
+            card.style.display = 'none';
+        } else {
+            updateRoutePathUI();
+            card.style.display = 'block';
+        }
+    }
+
+    function updateRoutePathUI() {
+        var container = document.getElementById('route-steps-list');
+        container.innerHTML = '';
+        
+        routeSteps.forEach(function(step, i) {
+            var div = document.createElement('div');
+            div.className = 'route-step-item' + (i === currentStepIndex + 1 ? ' current' : '');
+            div.innerHTML = 
+                '<div class="step-icon">' + step.icon + '</div>' +
+                '<div class="step-info">' +
+                '<div class="step-name">' + escHtml(step.instruction) + '</div>' +
+                '<div class="step-dist">' + fmtDist(step.distance) + '</div>' +
+                '</div>';
+            container.appendChild(div);
         });
     }
 
@@ -591,8 +1068,10 @@
             }
 
             statusEl.textContent = 'Accessing camera...';
-            var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            stream.getTracks().forEach(function (t) { t.stop(); });
+            if (settings.camera) {
+                var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                stream.getTracks().forEach(function (t) { t.stop(); });
+            }
 
             statusEl.textContent = 'Getting GPS fix...';
             var pos = await new Promise(function (res, rej) {
@@ -601,7 +1080,7 @@
             userLat = pos.coords.latitude; userLng = pos.coords.longitude;
 
             statusEl.textContent = 'Fetching route...';
-            var routeInfo = await fetchRoute(userLat, userLng, dest.lat, dest.lng);
+            var routeInfo = await fetchRoute(userLat, userLng, dest.lat, dest.lng, false);
 
             statusEl.textContent = 'Loading AR engine...';
             await loadScript('https://aframe.io/releases/1.4.2/aframe.min.js');
@@ -615,10 +1094,22 @@
                 wpEntities += '<a-sphere class="wp" data-idx="' + i + '" radius="0.15" color="#00BFFF" opacity="0.8" visible="false"></a-sphere>';
             }
 
+            // Add user POIs as AR cards if enabled
+            var poiEntities = '';
+            if (settings.poi) {
+                userPois.forEach(function(poi, idx) {
+                    poiEntities += 
+                        '<a-entity class="poi-marker" data-poi-id="' + poi.id + '" visible="false">' +
+                        '<a-box position="0 0.5 0" width="0.3" height="0.3" depth="0.3" color="' + poi.color + '"></a-box>' +
+                        '<a-text value="' + poi.name + '" align="center" position="0 1 0" color="white" scale="1.5 1.5 1.5" side="double"></a-text>' +
+                        '</a-entity>';
+                });
+            }
+
             var pinLabel = dest.name.length > 12 ? dest.name.substring(0, 12) + '..' : dest.name;
             document.getElementById('scene-container').innerHTML =
                 '<a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;" renderer="antialias: true; alpha: true" ar-route-nav>' +
-                '<a-entity camera></a-entity>' + wpEntities +
+                '<a-entity camera></a-entity>' + wpEntities + poiEntities +
                 '<a-entity id="destination-pin" visible="false">' +
                 '<a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>' +
                 '<a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>' +
@@ -628,20 +1119,29 @@
             var modeLabel = travelMode === 'car' ? 'drive' : 'walk';
             document.getElementById('hud-title').textContent = dest.name;
             document.getElementById('hud-eta').textContent =
-                fmtDist(routeInfo.distance) + '  \u00B7  ~' + Math.round(routeInfo.duration / 60) + ' min ' + modeLabel;
+                fmtDist(routeInfo.distance) + '  ·  ~' + Math.round(routeInfo.duration / 60) + ' min ' + modeLabel;
             document.getElementById('hud-street').textContent = '--';
             document.getElementById('hud-heading').textContent = '--';
             document.getElementById('hud-speed').textContent = '--';
             document.getElementById('hud').style.display = 'flex';
             document.getElementById('center-arrow-container').style.display = 'block';
             document.getElementById('back-btn').style.display = '';
+            document.getElementById('view-path-btn').style.display = '';
+            document.getElementById('settings-btn').style.display = '';
             document.getElementById('start-screen').style.display = 'none';
+            
+            isNavigating = true;
+            cameraActive = settings.camera;
+            toggleCameraMode();
 
-            // Initial street lookup
             updateStreetName(userLat, userLng);
-
-            // Welcome haptic
+            updateRoutePathUI();
             haptic([50, 30, 50]);
+            
+            // Welcome announcement
+            if (routeSteps[1]) {
+                speak('Starting navigation. ' + routeSteps[1].instruction + ' in ' + fmtDist(routeSteps[1].distance), 'normal');
+            }
 
         } catch (err) {
             btn.disabled = false; statusEl.style.display = 'none';
@@ -654,24 +1154,39 @@
     //  BACK / STOP
     // ================================================================
     document.getElementById('back-btn').addEventListener('click', function () {
+        isNavigating = false;
+        window.speechSynthesis.cancel();
         document.getElementById('scene-container').innerHTML = '';
         document.getElementById('hud').style.display = 'none';
         document.getElementById('center-arrow-container').style.display = 'none';
         document.getElementById('back-btn').style.display = 'none';
+        document.getElementById('view-path-btn').style.display = 'none';
+        document.getElementById('settings-btn').style.display = 'none';
+        document.getElementById('settings-panel').style.display = 'none';
+        document.getElementById('route-path-card').style.display = 'none';
         document.getElementById('start-screen').style.display = '';
         document.getElementById('start-btn').disabled = false;
         document.getElementById('start-status').style.display = 'none';
         routeWaypoints = []; routeSteps = []; currentStepIndex = 0; prevStepIndex = -1;
+        lastSpokenStep = -1; routeDeviationCount = 0;
         renderList(); updateListDistances();
     });
 
+    // Settings button toggle
+    document.getElementById('settings-btn').addEventListener('click', function() {
+        var panel = document.getElementById('settings-panel');
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    });
+
     // ================================================================
-    //  A-FRAME COMPONENT
+    //  A-FRAME COMPONENT (ENHANCED)
     // ================================================================
     function registerARComponent() {
         AFRAME.registerComponent('ar-route-nav', {
             init: function () {
-                this.deviceHeading = undefined; this.pos = null;
+                this.deviceHeading = undefined; 
+                this.pos = null;
+                this.lastPos = null;
                 this.watchId = navigator.geolocation.watchPosition(
                     this.onPosition.bind(this), function () {},
                     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
@@ -683,7 +1198,17 @@
 
             onPosition: function (p) {
                 this.pos = { lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude || 0 };
-                userLat = this.pos.lat; userLng = this.pos.lng;
+                
+                // Calculate movement heading if we have previous position
+                if (this.lastPos && (p.coords.speed === null || p.coords.speed === undefined)) {
+                    userHeading = bearingTo(this.lastPos.lat, this.lastPos.lng, this.pos.lat, this.pos.lng);
+                } else if (p.coords.heading !== null && p.coords.heading !== undefined) {
+                    userHeading = p.coords.heading;
+                }
+                
+                this.lastPos = this.pos;
+                userLat = this.pos.lat; 
+                userLng = this.pos.lng;
                 userSpeed = p.coords.speed;
                 updateStreetName(this.pos.lat, this.pos.lng);
                 this.update3D();
@@ -693,53 +1218,98 @@
                 if (e.absolute && e.alpha !== null) this.deviceHeading = 360 - e.alpha;
                 else if (e.webkitCompassHeading !== undefined) this.deviceHeading = e.webkitCompassHeading;
                 else if (e.alpha !== null) this.deviceHeading = 360 - e.alpha;
+                deviceHeading = this.deviceHeading;
                 this.update3D();
             },
 
             update3D: function () {
-                if (!this.pos || this.deviceHeading === undefined) return;
-                var me = this.pos, head = this.deviceHeading;
+                if (!this.pos) return;
+                
+                // Use best available heading: GPS movement > Compass
+                var effectiveHeading = userHeading !== null ? userHeading : this.deviceHeading;
+                if (effectiveHeading === undefined) return;
+                
+                var me = this.pos, head = effectiveHeading;
 
-                // Advance step
+                // Advance step logic with distance check
                 if (routeSteps.length > 0 && currentStepIndex < routeSteps.length - 1) {
                     var cs = routeSteps[currentStepIndex + 1];
-                    if (haversine(me.lat, me.lng, cs.lat, cs.lng) < 15) currentStepIndex++;
+                    var distToNext = haversine(me.lat, me.lng, cs.lat, cs.lng);
+                    
+                    if (distToNext < 15) {
+                        currentStepIndex++;
+                        // Announce step advancement
+                        if (currentStepIndex < routeSteps.length - 1) {
+                            var nextStep = routeSteps[currentStepIndex + 1];
+                            var nextDist = haversine(me.lat, me.lng, nextStep.lat, nextStep.lng);
+                            announceStep(currentStepIndex + 1, nextDist);
+                        }
+                    }
                 }
 
                 // Haptic on step change
                 if (currentStepIndex !== prevStepIndex) {
-                    if (prevStepIndex >= 0) haptic([40, 20, 40]); // subtle double tap
+                    if (prevStepIndex >= 0) haptic([40, 20, 40]);
                     prevStepIndex = currentStepIndex;
                 }
 
                 // HUD updates
                 if (routeSteps.length > 0) {
-                    var nextStep = routeSteps[Math.min(currentStepIndex + 1, routeSteps.length - 1)];
+                    var nextStepIdx = Math.min(currentStepIndex + 1, routeSteps.length - 1);
+                    var nextStep = routeSteps[nextStepIdx];
                     var distToNext = haversine(me.lat, me.lng, nextStep.lat, nextStep.lng);
 
                     document.getElementById('step-text').textContent =
                         nextStep.instruction + ' in ' + fmtDist(distToNext);
 
-                    // Arrow rotation: point towards next step maneuver
-                    var brngToNext = bearingTo(me.lat, me.lng, nextStep.lat, nextStep.lng);
-                    var arrowRot = ((brngToNext - head + 360) % 360);
-                    document.getElementById('nav-arrow').style.transform = 'rotate(' + arrowRot + 'deg)';
+                    // Update arrow rotation - points to destination bearing
+                    var dest = LOCATIONS[selectedIndex];
+                    var brngToDest = bearingTo(me.lat, me.lng, dest.lat, dest.lng);
+                    var arrowRot = ((brngToDest - head + 360) % 360);
+                    
+                    // Update both arrows
+                    var bigArrow = document.getElementById('big-arrow');
+                    var navArrow = document.getElementById('nav-arrow');
+                    
+                    if (bigArrow) bigArrow.style.transform = 'translate(-50%, -50%) rotate(' + arrowRot + 'deg)';
+                    if (navArrow) navArrow.style.transform = 'rotate(' + arrowRot + 'deg)';
+                    
+                    // Color coding based on proximity
+                    if (distToNext < 30) {
+                        if (bigArrow) bigArrow.querySelector('svg').style.fill = '#00FF88'; // Green when close
+                    } else {
+                        if (bigArrow) bigArrow.querySelector('svg').style.fill = '#00BFFF'; // Blue normal
+                    }
+
+                    // Voice announcements at milestones
+                    if (distToNext < 50 && nextStepIdx !== lastSpokenStep && nextStepIdx < routeSteps.length - 1) {
+                        announceStep(nextStepIdx, distToNext);
+                    }
 
                     // Dest totals
-                    var dest = LOCATIONS[selectedIndex];
                     var totalDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
-                    var speed = (travelMode === 'car') ? 8.3 : 1.4; // ~30km/h or ~5km/h
+                    var speed = (travelMode === 'car') ? 8.3 : 1.4;
                     if (userSpeed > 0.5) speed = userSpeed;
                     var eta = totalDist / speed;
                     var modeLabel = travelMode === 'car' ? 'drive' : 'walk';
                     document.getElementById('hud-eta').textContent =
-                        fmtDist(totalDist) + '  \u00B7  ~' + Math.max(1, Math.round(eta / 60)) + ' min ' + modeLabel;
+                        fmtDist(totalDist) + '  ·  ~' + Math.max(1, Math.round(eta / 60)) + ' min ' + modeLabel;
+                    
+                    // Arrival detection
+                    if (totalDist < 20 && lastSpokenStep !== -2) {
+                        lastSpokenStep = -2;
+                        speak('You have arrived at ' + dest.name, 'urgent');
+                        haptic([100, 50, 100, 50, 100]);
+                    }
                 }
 
                 // Compass heading + speed
                 document.getElementById('hud-heading').textContent =
-                    cardinal(head) + ' ' + Math.round(head) + '\u00B0';
+                    cardinal(head) + ' ' + Math.round(head) + '°';
                 document.getElementById('hud-speed').textContent = fmtSpeed(userSpeed);
+
+                // Only render 3D if camera is active
+                if (!cameraActive) return;
 
                 // Waypoint spheres
                 var wpEls = this.el.querySelectorAll('.wp');
@@ -762,6 +1332,27 @@
                     } else {
                         wpEls[i].setAttribute('visible', false);
                     }
+                }
+
+                // User POI markers
+                if (settings.poi) {
+                    var poiEls = this.el.querySelectorAll('.poi-marker');
+                    poiEls.forEach(function(el) {
+                        var poiId = parseInt(el.getAttribute('data-poi-id'));
+                        var poi = userPois.find(function(p) { return p.id === poiId; });
+                        if (!poi) return;
+                        
+                        var poiDist = haversine(me.lat, me.lng, poi.lat, poi.lng);
+                        var poiBrng = bearingTo(me.lat, me.lng, poi.lat, poi.lng);
+                        var poiRel = ((poiBrng - head + 360) % 360);
+                        var poiInView = poiRel < 30 || poiRel > 330;
+                        
+                        el.setAttribute('visible', poiInView && poiDist < 500);
+                        if (poiInView) {
+                            var s = Math.min(30, Math.max(1, poiDist / 50));
+                            el.setAttribute('position', { x: 0, y: 0, z: -s });
+                        }
+                    });
                 }
 
                 // Destination pin
