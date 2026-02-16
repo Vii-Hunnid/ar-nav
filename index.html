@@ -124,7 +124,7 @@
         /* ── BIG CENTERED ARROW ── */
         #center-arrow-container {
             position: fixed;
-            top: 55%; /* Moved down */
+            top: 55%;
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 9998;
@@ -134,7 +134,7 @@
         
         /* Minimised arrow */
         #big-arrow {
-            width: 64px; /* Reduced size */
+            width: 64px;
             height: 64px;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
             transition: transform 0.3s ease, color 0.3s;
@@ -236,33 +236,30 @@
 
         .step-dist { font-size: 12px; opacity: 0.6; margin-top: 2px; }
 
-        /* ── RECALCULATING TOAST ── */
-        #recalc-toast {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(239,45,94,0.95); color: white;
-            padding: 16px 32px; border-radius: 30px;
-            font-size: 16px; font-weight: bold;
-            z-index: 10002; display: none;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        }
-
-        /* ── AR CARDS / PINS ── */
-        .ar-card {
-            position: absolute; transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8); border: 2px solid #00BFFF;
-            border-radius: 12px; padding: 12px; color: white;
-            min-width: 150px; max-width: 200px;
+        /* ── RECALCULATING INDICATOR ── */
+        #recalc-indicator {
+            position: fixed; top: 140px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(239,45,94,0.9); color: white;
+            padding: 8px 16px; border-radius: 20px;
+            font-size: 13px; font-weight: bold;
+            z-index: 9996; display: none;
             backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .ar-card-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+        .spin {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 6px;
+        }
 
-        .ar-card-desc { font-size: 12px; opacity: 0.8; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
 
-        .ar-card-dist { font-size: 11px; color: #00BFFF; margin-top: 6px; }
-
-        /* Back button */
+        /* ── Back button ── */
         #back-btn {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             z-index: 9999; background: rgba(0,0,0,0.6); color: white;
@@ -350,6 +347,49 @@
             font-size: 12px; color: rgba(255,255,255,0.4);
             margin-top: 10px; text-align: left;
         }
+
+        /* ── AR POI CARDS ── */
+        .ar-poi-card {
+            position: absolute;
+            background: rgba(0,0,0,0.85);
+            border: 2px solid #00BFFF;
+            border-radius: 12px;
+            padding: 12px;
+            color: white;
+            min-width: 140px;
+            max-width: 180px;
+            backdrop-filter: blur(5px);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        .ar-poi-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #00BFFF;
+        }
+
+        .ar-poi-notes {
+            font-size: 11px;
+            opacity: 0.9;
+            line-height: 1.3;
+        }
+
+        .ar-poi-dist {
+            font-size: 11px;
+            color: #00FF88;
+            margin-top: 6px;
+            font-weight: bold;
+        }
+
+        /* Connector line to ground */
+        .ar-poi-connector {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, #00BFFF, transparent);
+            transform-origin: top;
+        }
     </style>
 </head>
 <body>
@@ -382,10 +422,10 @@
         <!-- Data Management Section -->
         <div id="data-management">
             <div class="section-label">Data Management</div>
-            <button class="data-btn" onclick="exportData()">📥 Export Data</button>
-            <button class="data-btn" onclick="document.getElementById('import-file').click()">📤 Import Data</button>
+            <button class="data-btn" onclick="exportData()">Export Data</button>
+            <button class="data-btn" onclick="document.getElementById('import-file').click()">Import Data</button>
             <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(this)">
-            <button class="data-btn danger" onclick="clearAllData()">🗑️ Clear All Data</button>
+            <button class="data-btn danger" onclick="clearAllData()">Clear All Data</button>
             <div class="storage-info" id="storage-info">Loading storage info...</div>
         </div>
     </div>
@@ -403,7 +443,7 @@
     </div>
 
     <!-- Settings -->
-    <button id="settings-btn">⚙️</button>
+    <button id="settings-btn">[Settings]</button>
     <div id="settings-panel">
         <div class="setting-item">
             <span>Camera AR</span>
@@ -435,7 +475,7 @@
         </div>
         <div class="hud-card" id="hud-step-wrap">
             <div id="hud-step-card">
-                <div id="nav-arrow">&uarr;</div>
+                <div id="nav-arrow">[Up]</div>
                 <div id="step-text">Calculating route...</div>
             </div>
         </div>
@@ -450,15 +490,17 @@
         </div>
     </div>
 
+    <!-- Recalculating Indicator -->
+    <div id="recalc-indicator">
+        <span class="spin">[Refresh]</span> Recalculating...
+    </div>
+
     <!-- Route Path Card -->
     <div id="route-path-card">
-        <button id="close-path-btn" onclick="toggleRoutePath()">×</button>
+        <button id="close-path-btn" onclick="toggleRoutePath()">[Close]</button>
         <div style="font-size: 16px; font-weight: bold; margin-bottom: 12px;">Full Route</div>
         <div id="route-steps-list"></div>
     </div>
-
-    <!-- Recalculating Toast -->
-    <div id="recalc-toast">↻ Recalculating route...</div>
 
     <button id="back-btn">Stop navigation</button>
     <button id="view-path-btn" onclick="toggleRoutePath()">View Path</button>
@@ -476,7 +518,7 @@
         { name: 'The Zone @ Rosebank',    lat: -26.1468, lng: 28.0445 }
     ];
 
-    var STORAGE_KEY = 'ar_nav_locations_v2'; // Versioned to prevent conflicts
+    var STORAGE_KEY = 'ar_nav_locations_v2';
     var SETTINGS_KEY = 'ar_nav_settings_v2';
     var USER_POIS_KEY = 'ar_nav_pois_v2';
 
@@ -494,7 +536,6 @@
             var savedSettings = localStorage.getItem(SETTINGS_KEY);
             if (savedSettings) {
                 var parsed = JSON.parse(savedSettings);
-                // Merge with defaults to ensure all keys exist
                 settings = Object.assign({}, settings, parsed);
             }
         } catch (e) {
@@ -571,40 +612,55 @@
     }
 
     function savePoi() {
-        var name = document.getElementById('poi-name').value.trim();
-        var coordsStr = document.getElementById('poi-coords').value.trim();
-        var notes = document.getElementById('poi-notes').value.trim();
-        
-        if (!name || !coordsStr) {
-            alert('Please enter name and coordinates');
-            return;
+        try {
+            var name = document.getElementById('poi-name').value.trim();
+            var coordsStr = document.getElementById('poi-coords').value.trim();
+            var notes = document.getElementById('poi-notes').value.trim();
+            
+            if (!name || !coordsStr) {
+                alert('Please enter name and coordinates');
+                return;
+            }
+            
+            var coords = parseLatLng(coordsStr);
+            if (!coords) {
+                alert('Invalid coordinates format. Use: -26.1340, 28.0690');
+                return;
+            }
+            
+            // Validate coordinates are in reasonable range (South Africa area roughly)
+            if (coords.lat < -35 || coords.lat > -22 || coords.lng < 16 || coords.lng > 33) {
+                if (!confirm('These coordinates appear to be outside South Africa. Continue?')) {
+                    return;
+                }
+            }
+            
+            var poi = {
+                id: Date.now(),
+                name: name,
+                lat: coords.lat,
+                lng: coords.lng,
+                notes: notes,
+                color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
+                createdAt: new Date().toISOString()
+            };
+            
+            userPois.push(poi);
+            saveUserPois();
+            closePoiForm();
+            
+            // Add to destinations for immediate use
+            addLocation(name, coords.lat, coords.lng, notes);
+            
+            // Visual feedback
+            haptic([50]);
+            
+            alert('Pin saved successfully!');
+            
+        } catch (e) {
+            console.error('Error saving POI:', e);
+            alert('Error saving pin: ' + e.message);
         }
-        
-        var coords = parseLatLng(coordsStr);
-        if (!coords) {
-            alert('Invalid coordinates format. Use: -26.1340, 28.0690');
-            return;
-        }
-        
-        var poi = {
-            id: Date.now(),
-            name: name,
-            lat: coords.lat,
-            lng: coords.lng,
-            notes: notes,
-            color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
-            createdAt: new Date().toISOString()
-        };
-        
-        userPois.push(poi);
-        saveUserPois();
-        closePoiForm();
-        
-        // Add to destinations for immediate use
-        addLocation(name, coords.lat, coords.lng, notes);
-        
-        // Visual feedback
-        haptic([50]);
     }
 
     // ================================================================
@@ -618,7 +674,7 @@
             var total = 0;
             for (var key in localStorage) {
                 if (localStorage.hasOwnProperty(key)) {
-                    total += localStorage[key].length * 2; // UTF-16 encoding
+                    total += localStorage[key].length * 2;
                 }
             }
             var kb = (total / 1024).toFixed(2);
@@ -632,23 +688,29 @@
     }
 
     function exportData() {
-        var data = {
-            version: '2.0',
-            exportedAt: new Date().toISOString(),
-            locations: LOCATIONS.filter(function(l) { return l.userAdded; }),
-            pois: userPois,
-            settings: settings
-        };
-        
-        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'ar-nav-backup-' + new Date().toISOString().split('T')[0] + '.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+            var data = {
+                version: '2.0',
+                exportedAt: new Date().toISOString(),
+                locations: LOCATIONS.filter(function(l) { return l.userAdded; }),
+                pois: userPois,
+                settings: settings
+            };
+            
+            var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'ar-nav-backup-' + new Date().toISOString().split('T')[0] + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Data exported successfully!');
+        } catch (e) {
+            alert('Export failed: ' + e.message);
+        }
     }
 
     function importData(input) {
@@ -660,19 +722,16 @@
             try {
                 var data = JSON.parse(e.target.result);
                 
-                // Validate data structure
                 if (!data.locations || !Array.isArray(data.locations)) {
                     throw new Error('Invalid backup file: missing locations');
                 }
                 
-                // Confirm import
                 var msg = 'Import ' + data.locations.length + ' locations';
                 if (data.pois) msg += ' and ' + data.pois.length + ' POIs';
                 msg += '? This will merge with existing data.';
                 
                 if (!confirm(msg)) return;
                 
-                // Merge locations (avoid duplicates)
                 var addedCount = 0;
                 data.locations.forEach(function(loc) {
                     var exists = LOCATIONS.some(function(l) {
@@ -684,7 +743,6 @@
                     }
                 });
                 
-                // Merge POIs
                 if (data.pois && Array.isArray(data.pois)) {
                     data.pois.forEach(function(poi) {
                         var exists = userPois.some(function(p) { return p.id === poi.id; });
@@ -695,11 +753,9 @@
                     saveUserPois();
                 }
                 
-                // Import settings if present
                 if (data.settings) {
                     settings = Object.assign({}, settings, data.settings);
                     saveSettings();
-                    // Update UI toggles
                     Object.keys(settings).forEach(function(key) {
                         var el = document.getElementById('toggle-' + key);
                         if (el) el.classList.toggle('active', settings[key]);
@@ -719,27 +775,25 @@
             }
         };
         reader.readAsText(file);
-        input.value = ''; // Reset input
+        input.value = '';
     }
 
     function clearAllData() {
-        var msg = '⚠️ WARNING: This will permanently delete ALL your saved locations, POIs, and settings.\n\n';
+        var msg = 'WARNING: This will permanently delete ALL your saved locations, POIs, and settings.\n\n';
         msg += 'This cannot be undone. Consider exporting your data first.\n\n';
         msg += 'Type "DELETE" to confirm:';
         
-        var confirm = prompt(msg);
-        if (confirm !== 'DELETE') {
-            if (confirm !== null) alert('Deletion cancelled. Type "DELETE" in all caps to confirm.');
+        var confirmText = prompt(msg);
+        if (confirmText !== 'DELETE') {
+            if (confirmText !== null) alert('Deletion cancelled. Type "DELETE" in all caps to confirm.');
             return;
         }
         
         try {
-            // Clear all app data
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem(SETTINGS_KEY);
             localStorage.removeItem(USER_POIS_KEY);
             
-            // Reset variables
             userPois = [];
             settings = {
                 camera: true,
@@ -748,13 +802,11 @@
                 poi: true
             };
             
-            // Reload locations (will reset to defaults only)
             LOCATIONS = loadLocations();
             renderList();
             updateListDistances();
             updateStorageInfo();
             
-            // Reset UI toggles
             Object.keys(settings).forEach(function(key) {
                 var el = document.getElementById('toggle-' + key);
                 if (el) el.classList.toggle('active', settings[key]);
@@ -784,14 +836,11 @@
             saved = [];
         }
         
-        // Start with fresh copy of defaults
         var merged = DEFAULT_LOCATIONS.map(function (d) { 
             return Object.assign({}, d); 
         });
         
-        // Add saved user locations
         saved.forEach(function (s) {
-            // Check for duplicates by coordinates
             var exists = merged.some(function (m) { 
                 return Math.abs(m.lat - s.lat) < 0.0005 && Math.abs(m.lng - s.lng) < 0.0005;
             });
@@ -808,7 +857,6 @@
             var toSave = LOCATIONS.filter(function (l) { 
                 return l.userAdded; 
             }).map(function (l) {
-                // Only save necessary fields
                 return { 
                     name: l.name, 
                     lat: l.lat, 
@@ -844,6 +892,7 @@
     var cameraActive = true;
     var synth = window.speechSynthesis;
     var lastSpokenStep = -1;
+    var isRecalculating = false;
 
     // ================================================================
     //  VOICE SYNTHESIS
@@ -950,11 +999,11 @@
 
     function stepIcon(step) {
         var mod = step.maneuver.modifier || '', type = step.maneuver.type || '';
-        if (type === 'arrive') return '🏁';
-        if (mod.indexOf('left') !== -1) return '↰';
-        if (mod.indexOf('right') !== -1) return '↱';
-        if (type === 'roundabout' || type === 'rotary') return '↻';
-        return '↑';
+        if (type === 'arrive') return 'End';
+        if (mod.indexOf('left') !== -1) return 'Left';
+        if (mod.indexOf('right') !== -1) return 'Right';
+        if (type === 'roundabout' || type === 'rotary') return 'Round';
+        return 'Up';
     }
 
     function haptic(pattern) {
@@ -962,18 +1011,24 @@
     }
 
     // ================================================================
-    //  ROUTE RECALCULATION
+    //  ROUTE RECALCULATION (ASYNC, NON-BLOCKING)
     // ================================================================
     function checkRouteDeviation() {
         if (!isNavigating || !routeSteps.length || currentStepIndex >= routeSteps.length - 1) return;
+        if (isRecalculating) return; // Prevent multiple simultaneous recalculations
         
         var nextStep = routeSteps[currentStepIndex + 1];
         var distToNext = haversine(userLat, userLng, nextStep.lat, nextStep.lng);
         
-        if (distToNext > 100) {
+        // Check if we're off the expected route
+        if (distToNext > 80) { // 80m threshold
             routeDeviationCount++;
-            if (routeDeviationCount > 3) {
-                recalculateRoute();
+            
+            if (routeDeviationCount > 2) { // Trigger after 3 consecutive checks
+                // Async recalculation - doesn't block UI
+                setTimeout(function() {
+                    recalculateRoute();
+                }, 0);
             }
         } else {
             routeDeviationCount = Math.max(0, routeDeviationCount - 1);
@@ -982,29 +1037,38 @@
 
     function recalculateRoute() {
         var now = Date.now();
-        if (now - lastRecalcTime < 5000) return;
+        if (now - lastRecalcTime < 8000) return; // Increased debounce to 8 seconds
         lastRecalcTime = now;
         
         var dest = LOCATIONS[selectedIndex];
-        if (!dest) return;
+        if (!dest || isRecalculating) return;
         
-        document.getElementById('recalc-toast').style.display = 'block';
-        document.getElementById('big-arrow').classList.add('recalculating');
-        speak('Recalculating route', 'urgent');
-        haptic([100, 50, 100]);
+        isRecalculating = true;
         
+        // Show subtle indicator instead of blocking toast
+        var indicator = document.getElementById('recalc-indicator');
+        if (indicator) indicator.style.display = 'block';
+        
+        // Subtle haptic - single short pulse
+        haptic([30]);
+        
+        // Async route fetch
         fetchRoute(userLat, userLng, dest.lat, dest.lng, true).then(function(routeInfo) {
-            document.getElementById('recalc-toast').style.display = 'none';
-            document.getElementById('big-arrow').classList.remove('recalculating');
+            isRecalculating = false;
+            if (indicator) indicator.style.display = 'none';
+            
             currentStepIndex = 0;
             lastSpokenStep = -1;
             routeDeviationCount = 0;
             
-            speak('Route recalculated. Continue for ' + fmtDist(routeSteps[1] ? routeSteps[1].distance : routeInfo.distance), 'normal');
+            // Only speak if voice is enabled and not recently spoken
+            speak('Route updated', 'normal');
             updateRoutePathUI();
+            
         }).catch(function(err) {
-            document.getElementById('recalc-toast').style.display = 'none';
-            document.getElementById('big-arrow').classList.remove('recalculating');
+            isRecalculating = false;
+            if (indicator) indicator.style.display = 'none';
+            console.error('Recalculation failed:', err);
         });
     }
 
@@ -1021,6 +1085,7 @@
             cameraActive = false;
         } else {
             if (scene) scene.style.display = '';
+            bigArrow.style.display = 'block'; // Always show arrow
             cameraActive = true;
         }
     }
@@ -1207,7 +1272,7 @@
                 (loc.userAdded ? '<span class="dest-tag">added</span>' : '') +
                 '</div><div class="dest-coords">' + loc.lat.toFixed(4) + ', ' + loc.lng.toFixed(4) + '</div></div>' +
                 '<div class="dest-right"><span class="dest-dist" id="dist-' + i + '">--</span>' +
-                (loc.userAdded ? '<button class="dest-remove" data-idx="' + i + '">×</button>' : '') + '</div>';
+                (loc.userAdded ? '<button class="dest-remove" data-idx="' + i + '">[x]</button>' : '') + '</div>';
             li.addEventListener('click', function (e) {
                 if (e.target.classList.contains('dest-remove')) return;
                 selectDest(i);
@@ -1352,13 +1417,21 @@
                 wpEntities += '<a-sphere class="wp" data-idx="' + i + '" radius="0.15" color="#00BFFF" opacity="0.8" visible="false"></a-sphere>';
             }
 
+            // Build POI entities with proper AR cards
             var poiEntities = '';
-            if (settings.poi) {
+            if (settings.poi && userPois.length > 0) {
                 userPois.forEach(function(poi, idx) {
+                    // Create AR card for each POI
                     poiEntities += 
-                        '<a-entity class="poi-marker" data-poi-id="' + poi.id + '" visible="false">' +
-                        '<a-box position="0 0.5 0" width="0.3" height="0.3" depth="0.3" color="' + poi.color + '"></a-box>' +
-                        '<a-text value="' + poi.name + '" align="center" position="0 1 0" color="white" scale="1.5 1.5 1.5" side="double"></a-text>' +
+                        '<a-entity class="poi-marker" data-poi-id="' + poi.id + '" visible="false" look-at="[camera]">' +
+                        '<a-entity position="0 0.8 0">' + // Float above ground
+                        '<a-plane width="1.2" height="0.6" color="#1a1a2e" opacity="0.9" material="shader: flat; transparent: true"></a-plane>' +
+                        '<a-text value="' + poi.name + '" align="center" position="0 0.15 0.01" color="#00BFFF" width="2" font="kelsonsans"></a-text>' +
+                        '<a-text value="' + (poi.notes || 'No notes') + '" align="center" position="0 -0.05 0.01" color="white" width="1.5" font="kelsonsans"></a-text>' +
+                        '<a-text id="poi-dist-' + poi.id + '" value="--" align="center" position="0 -0.2 0.01" color="#00FF88" width="1.5" font="kelsonsans"></a-text>' +
+                        '</a-entity>' +
+                        '<a-cylinder position="0 0.4 0" radius="0.02" height="0.8" color="#00BFFF" opacity="0.6"></a-cylinder>' + // Connector line
+                        '<a-sphere position="0 0 0" radius="0.1" color="' + poi.color + '"></a-sphere>' + // Ground marker
                         '</a-entity>';
                 });
             }
@@ -1411,6 +1484,7 @@
     // ================================================================
     document.getElementById('back-btn').addEventListener('click', function () {
         isNavigating = false;
+        isRecalculating = false;
         window.speechSynthesis.cancel();
         document.getElementById('scene-container').innerHTML = '';
         document.getElementById('hud').style.display = 'none';
@@ -1420,6 +1494,7 @@
         document.getElementById('settings-btn').style.display = 'none';
         document.getElementById('settings-panel').style.display = 'none';
         document.getElementById('route-path-card').style.display = 'none';
+        document.getElementById('recalc-indicator').style.display = 'none';
         document.getElementById('start-screen').style.display = '';
         document.getElementById('start-btn').disabled = false;
         document.getElementById('start-status').style.display = 'none';
@@ -1437,7 +1512,7 @@
     updateStorageInfo();
 
     // ================================================================
-    //  A-FRAME COMPONENT
+    //  A-FRAME COMPONENT (ENHANCED WITH AR CARDS)
     // ================================================================
     function registerARComponent() {
         AFRAME.registerComponent('ar-route-nav', {
@@ -1487,6 +1562,7 @@
                 
                 var me = this.pos, head = effectiveHeading;
 
+                // Advance step logic
                 if (routeSteps.length > 0 && currentStepIndex < routeSteps.length - 1) {
                     var cs = routeSteps[currentStepIndex + 1];
                     var distToNext = haversine(me.lat, me.lng, cs.lat, cs.lng);
@@ -1506,6 +1582,7 @@
                     prevStepIndex = currentStepIndex;
                 }
 
+                // HUD updates
                 if (routeSteps.length > 0) {
                     var nextStepIdx = Math.min(currentStepIndex + 1, routeSteps.length - 1);
                     var nextStep = routeSteps[nextStepIdx];
@@ -1555,6 +1632,7 @@
 
                 if (!cameraActive) return;
 
+                // Update waypoints
                 var wpEls = this.el.querySelectorAll('.wp');
                 for (var i = 0; i < wpEls.length; i++) {
                     var idx = parseInt(wpEls[i].getAttribute('data-idx'));
@@ -1577,6 +1655,7 @@
                     }
                 }
 
+                // Update POI markers with distance
                 if (settings.poi) {
                     var poiEls = this.el.querySelectorAll('.poi-marker');
                     poiEls.forEach(function(el) {
@@ -1587,16 +1666,38 @@
                         var poiDist = haversine(me.lat, me.lng, poi.lat, poi.lng);
                         var poiBrng = bearingTo(me.lat, me.lng, poi.lat, poi.lng);
                         var poiRel = ((poiBrng - head + 360) % 360);
-                        var poiInView = poiRel < 30 || poiRel > 330;
                         
-                        el.setAttribute('visible', poiInView && poiDist < 500);
-                        if (poiInView) {
-                            var s = Math.min(30, Math.max(1, poiDist / 50));
-                            el.setAttribute('position', { x: 0, y: 0, z: -s });
+                        // Show if within 300m and in front of user (120 degree FOV)
+                        var poiInView = poiRel < 60 || poiRel > 300;
+                        var shouldShow = poiInView && poiDist < 300;
+                        
+                        el.setAttribute('visible', shouldShow);
+                        
+                        if (shouldShow) {
+                            // Position in 3D space
+                            var rad = (poiRel < 180 ? poiRel : poiRel - 360) * Math.PI / 180;
+                            var distanceScale = Math.min(50, Math.max(2, poiDist / 10));
+                            
+                            el.setAttribute('position', { 
+                                x: Math.sin(rad) * distanceScale, 
+                                y: 0, 
+                                z: -Math.cos(rad) * distanceScale 
+                            });
+                            
+                            // Update distance text
+                            var distText = el.querySelector('#poi-dist-' + poiId);
+                            if (distText) {
+                                distText.setAttribute('value', fmtDist(poiDist));
+                            }
+                            
+                            // Scale based on distance (closer = larger)
+                            var scale = Math.min(2, Math.max(0.5, 10 / distanceScale));
+                            el.setAttribute('scale', { x: scale, y: scale, z: scale });
                         }
                     });
                 }
 
+                // Destination pin
                 var dest = LOCATIONS[selectedIndex];
                 var destDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
                 var destBrng = bearingTo(me.lat, me.lng, dest.lat, dest.lng);
