@@ -145,7 +145,7 @@
                 // Load A-Frame + AR.js dynamically
                 statusEl.textContent = 'Loading AR engine...';
                 await loadScript('https://aframe.io/releases/1.4.2/aframe.min.js');
-                await loadScript('https://unpkg.com/ar.js@3.4.5/aframe/build/aframe-ar.js');
+                await loadScript('https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js');
 
                 // Register our component now that AFRAME is available
                 registerARComponent();
