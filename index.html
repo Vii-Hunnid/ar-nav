@@ -7,10 +7,10 @@
     <title>AR Navigation</title>
 
     <style>
-        * { margin: 0; padding: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
 
-        /* Start screen */
+        /* ── Start screen ── */
         #start-screen {
             position: fixed;
             inset: 0;
@@ -18,22 +18,54 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             z-index: 10000;
             color: white;
             text-align: center;
-            padding: 20px;
+            padding: 40px 20px 20px;
+            overflow-y: auto;
         }
-        #start-screen h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        #start-screen p {
-            font-size: 16px;
-            opacity: 0.7;
-            margin-bottom: 30px;
+        #start-screen h1 { font-size: 26px; margin-bottom: 6px; }
+        #start-screen .subtitle {
+            font-size: 14px;
+            opacity: 0.6;
+            margin-bottom: 24px;
             max-width: 300px;
         }
+
+        /* Destination list */
+        #dest-list {
+            width: 100%;
+            max-width: 360px;
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        #dest-list li {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid transparent;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #dest-list li:active,
+        #dest-list li.selected {
+            border-color: #EF2D5E;
+            background: rgba(239,45,94,0.15);
+        }
+        .dest-name { font-size: 16px; font-weight: bold; }
+        .dest-coords { font-size: 11px; opacity: 0.5; margin-top: 2px; }
+        .dest-dist {
+            font-size: 13px;
+            opacity: 0.7;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
         #start-btn {
             background: #EF2D5E;
             color: white;
@@ -42,292 +74,510 @@
             font-size: 20px;
             border-radius: 30px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, opacity 0.2s;
+            opacity: 0.4;
+            pointer-events: none;
         }
+        #start-btn.ready { opacity: 1; pointer-events: auto; }
         #start-btn:active { transform: scale(0.95); }
+
         #start-status {
-            margin-top: 15px;
+            margin-top: 12px;
             font-size: 14px;
             color: #aaa;
             display: none;
         }
         #start-error {
-            margin-top: 10px;
+            margin-top: 8px;
             color: #ff6b6b;
             font-size: 14px;
             display: none;
+            max-width: 320px;
         }
 
-        /* HUD overlay */
-        .info-overlay {
+        /* ── HUD overlay ── */
+        #hud {
             position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 20px;
+            top: 0;
+            left: 0;
+            right: 0;
             z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 12px 0;
+            pointer-events: none;
+        }
+        #hud-dest {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 22px;
+            border-radius: 20px;
             text-align: center;
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
+            margin-bottom: 8px;
+        }
+        #hud-dest .dest-title { font-size: 18px; font-weight: bold; }
+        #hud-dest .dest-eta { font-size: 13px; opacity: 0.7; margin-top: 2px; }
+        #hud-step {
+            background: rgba(0,0,0,0.65);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 14px;
+            font-size: 15px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        #hud-step .step-icon { font-size: 22px; }
+
+        /* ── Back button ── */
+        #back-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px 28px;
+            border-radius: 20px;
+            font-size: 15px;
+            cursor: pointer;
             display: none;
-        }
-        #distance-info {
-            font-size: 18px;
-            font-weight: bold;
-        }
-        #direction-info {
-            margin-top: 5px;
-            font-size: 16px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
         }
     </style>
 </head>
 <body>
 
-    <!-- Start screen -->
+    <!-- ── Start screen: pick a destination ── -->
     <div id="start-screen">
         <h1>AR Navigation</h1>
-        <p>Point your camera and get real-time directions to your destination</p>
-        <button id="start-btn">Start AR</button>
+        <p class="subtitle">Select a destination, then follow the AR path</p>
+
+        <ul id="dest-list"></ul>
+
+        <button id="start-btn">Navigate</button>
         <div id="start-status"></div>
         <div id="start-error"></div>
     </div>
 
-    <!-- HUD overlay (hidden until AR starts) -->
-    <div class="info-overlay" id="hud">
-        <div id="distance-info">Calculating distance...</div>
-        <div id="direction-info">Finding direction...</div>
+    <!-- ── HUD (shown during navigation) ── -->
+    <div id="hud">
+        <div id="hud-dest">
+            <div class="dest-title" id="hud-title">--</div>
+            <div class="dest-eta" id="hud-eta">--</div>
+        </div>
+        <div id="hud-step">
+            <span class="step-icon" id="step-icon"></span>
+            <span id="step-text">Calculating route...</span>
+        </div>
     </div>
 
-    <!-- AR scene container — populated dynamically after scripts load -->
+    <button id="back-btn">Stop navigation</button>
+
+    <!-- AR scene injected here -->
     <div id="scene-container"></div>
 
     <script>
-        // ── Helper: load a script and return a promise ──
-        function loadScript(src) {
-            return new Promise(function (resolve, reject) {
-                var s = document.createElement('script');
-                s.src = src;
-                s.onload = resolve;
-                s.onerror = function () { reject(new Error('Failed to load ' + src)); };
-                document.head.appendChild(s);
-            });
+    // ================================================================
+    //  TAGGED LOCATIONS — add / edit your destinations here
+    // ================================================================
+    var LOCATIONS = [
+        { name: 'Empire State Building', lat: 40.748817, lng: -73.985428 },
+        { name: 'Times Square',          lat: 40.758896, lng: -73.985130 },
+        { name: 'Central Park',          lat: 40.785091, lng: -73.968285 },
+        { name: 'Brooklyn Bridge',       lat: 40.706086, lng: -73.996864 },
+        { name: 'Statue of Liberty',     lat: 40.689247, lng: -74.044502 }
+    ];
+
+    // ================================================================
+    //  STATE
+    // ================================================================
+    var selectedIndex = -1;
+    var userLat = null;
+    var userLng = null;
+    var routeWaypoints = [];   // [{lat, lng}, ...] from OSRM
+    var routeSteps = [];       // [{instruction, distance, maneuver}, ...]
+    var currentStepIndex = 0;
+
+    // ================================================================
+    //  HELPERS
+    // ================================================================
+    function haversine(lat1, lng1, lat2, lng2) {
+        var R = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function bearing(lat1, lng1, lat2, lng2) {
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var r1 = lat1 * Math.PI / 180, r2 = lat2 * Math.PI / 180;
+        var y = Math.sin(dLng) * Math.cos(r2);
+        var x = Math.cos(r1) * Math.sin(r2) - Math.sin(r1) * Math.cos(r2) * Math.cos(dLng);
+        return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+    }
+
+    function fmtDist(m) {
+        return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km';
+    }
+
+    function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+            var s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = function () { reject(new Error('Failed to load ' + src)); };
+            document.head.appendChild(s);
+        });
+    }
+
+    // OSRM step → human-readable instruction
+    function stepInstruction(step) {
+        var mod = step.maneuver.modifier || '';
+        var type = step.maneuver.type || '';
+        if (type === 'depart') return 'Head ' + (mod || 'forward');
+        if (type === 'arrive') return 'You have arrived';
+        if (type === 'turn' || type === 'end of road' || type === 'new name') {
+            if (mod.indexOf('left') !== -1) return 'Turn left';
+            if (mod.indexOf('right') !== -1) return 'Turn right';
+            return 'Continue ' + mod;
         }
+        if (type === 'continue' || type === 'straight') return 'Continue straight';
+        if (type === 'roundabout' || type === 'rotary') return 'Take the roundabout';
+        if (mod) return type.charAt(0).toUpperCase() + type.slice(1) + ' ' + mod;
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    }
 
-        // ── Start button ──
-        document.getElementById('start-btn').addEventListener('click', async function () {
-            var btn = document.getElementById('start-btn');
-            var statusEl = document.getElementById('start-status');
-            var errorEl = document.getElementById('start-error');
-            btn.disabled = true;
-            errorEl.style.display = 'none';
-            statusEl.style.display = 'block';
-            statusEl.textContent = 'Requesting permissions...';
+    function stepIcon(step) {
+        var mod = step.maneuver.modifier || '';
+        var type = step.maneuver.type || '';
+        if (type === 'arrive') return '\u{1F3C1}';
+        if (mod.indexOf('left') !== -1) return '\u21B0';
+        if (mod.indexOf('right') !== -1) return '\u21B1';
+        return '\u2191';
+    }
 
-            try {
-                // iOS 13+ requires explicit permission for DeviceOrientation
-                if (typeof DeviceOrientationEvent !== 'undefined' &&
-                    typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    var response = await DeviceOrientationEvent.requestPermission();
-                    if (response !== 'granted') {
-                        throw new Error('Compass permission denied. Please allow motion access.');
+    // ================================================================
+    //  RENDER DESTINATION LIST
+    // ================================================================
+    var listEl = document.getElementById('dest-list');
+
+    function renderList() {
+        listEl.innerHTML = '';
+        LOCATIONS.forEach(function (loc, i) {
+            var li = document.createElement('li');
+            li.innerHTML =
+                '<div>' +
+                '  <div class="dest-name">' + loc.name + '</div>' +
+                '  <div class="dest-coords">' + loc.lat.toFixed(4) + ', ' + loc.lng.toFixed(4) + '</div>' +
+                '</div>' +
+                '<div class="dest-dist" id="dist-' + i + '">--</div>';
+            li.addEventListener('click', function () { selectDest(i); });
+            listEl.appendChild(li);
+        });
+    }
+    renderList();
+
+    function selectDest(i) {
+        selectedIndex = i;
+        var items = listEl.querySelectorAll('li');
+        items.forEach(function (li, j) {
+            li.classList.toggle('selected', j === i);
+        });
+        document.getElementById('start-btn').classList.add('ready');
+    }
+
+    // Update distances on the list as we get GPS
+    function updateListDistances() {
+        if (userLat === null) return;
+        LOCATIONS.forEach(function (loc, i) {
+            var el = document.getElementById('dist-' + i);
+            if (el) el.textContent = fmtDist(haversine(userLat, userLng, loc.lat, loc.lng));
+        });
+    }
+
+    // Get user position early (for list distances)
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(function (pos) {
+            userLat = pos.coords.latitude;
+            userLng = pos.coords.longitude;
+            updateListDistances();
+        }, function () {}, { enableHighAccuracy: true });
+    }
+
+    // ================================================================
+    //  FETCH ROUTE FROM OSRM (free, no API key)
+    // ================================================================
+    function fetchRoute(fromLat, fromLng, toLat, toLng) {
+        var url = 'https://router.project-osrm.org/route/v1/foot/' +
+                  fromLng + ',' + fromLat + ';' + toLng + ',' + toLat +
+                  '?overview=full&geometries=geojson&steps=true';
+        return fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.code !== 'Ok' || !data.routes.length) throw new Error('No route found');
+            var route = data.routes[0];
+            // Decode waypoints from GeoJSON coordinates [lng, lat]
+            routeWaypoints = route.geometry.coordinates.map(function (c) {
+                return { lat: c[1], lng: c[0] };
+            });
+            // Extract step-by-step instructions
+            routeSteps = route.legs[0].steps.map(function (s) {
+                return {
+                    instruction: stepInstruction(s),
+                    icon: stepIcon(s),
+                    distance: s.distance,
+                    lat: s.maneuver.location[1],
+                    lng: s.maneuver.location[0]
+                };
+            });
+            currentStepIndex = 0;
+            return {
+                distance: route.distance,
+                duration: route.duration,
+                waypoints: routeWaypoints,
+                steps: routeSteps
+            };
+        });
+    }
+
+    // ================================================================
+    //  START NAVIGATION
+    // ================================================================
+    document.getElementById('start-btn').addEventListener('click', async function () {
+        if (selectedIndex < 0) return;
+        var dest = LOCATIONS[selectedIndex];
+        var btn = document.getElementById('start-btn');
+        var statusEl = document.getElementById('start-status');
+        var errorEl = document.getElementById('start-error');
+        btn.disabled = true;
+        errorEl.style.display = 'none';
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Requesting permissions...';
+
+        try {
+            // iOS compass permission
+            if (typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                var response = await DeviceOrientationEvent.requestPermission();
+                if (response !== 'granted')
+                    throw new Error('Compass permission denied. Allow motion access.');
+            }
+
+            // Camera
+            statusEl.textContent = 'Accessing camera...';
+            var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            stream.getTracks().forEach(function (t) { t.stop(); });
+
+            // Get fresh position for route
+            statusEl.textContent = 'Getting GPS fix...';
+            var pos = await new Promise(function (resolve, reject) {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true, timeout: 15000
+                });
+            });
+            userLat = pos.coords.latitude;
+            userLng = pos.coords.longitude;
+
+            // Fetch walking route
+            statusEl.textContent = 'Fetching route...';
+            var routeInfo = await fetchRoute(userLat, userLng, dest.lat, dest.lng);
+
+            // Load A-Frame + AR.js
+            statusEl.textContent = 'Loading AR engine...';
+            await loadScript('https://aframe.io/releases/1.4.2/aframe.min.js');
+            await loadScript('https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js');
+
+            registerARComponent();
+
+            // Build waypoint entities (small spheres along the path, every ~20m)
+            var wpEntities = '';
+            var step = Math.max(1, Math.floor(routeWaypoints.length / 60));
+            for (var i = 0; i < routeWaypoints.length; i += step) {
+                wpEntities +=
+                    '<a-sphere class="wp" data-idx="' + i + '" ' +
+                    'radius="0.15" color="#00BFFF" opacity="0.8" visible="false">' +
+                    '</a-sphere>';
+            }
+
+            // Destination pin
+            var pinLabel = dest.name.length > 12 ? dest.name.substring(0, 12) + '..' : dest.name;
+            var sceneHTML =
+                '<a-scene vr-mode-ui="enabled: false" embedded ' +
+                'arjs="sourceType: webcam; debugUIEnabled: false;" ' +
+                'renderer="antialias: true; alpha: true" ' +
+                'ar-route-nav="destName: ' + dest.name + '">' +
+                '<a-entity camera></a-entity>' +
+                wpEntities +
+                '<a-entity id="destination-pin" visible="false">' +
+                '  <a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>' +
+                '  <a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>' +
+                '  <a-text value="' + pinLabel + '" align="center" position="0 1.75 0" color="#fff" scale="2 2 2"></a-text>' +
+                '</a-entity>' +
+                '</a-scene>';
+
+            statusEl.textContent = 'Starting AR...';
+            document.getElementById('scene-container').innerHTML = sceneHTML;
+
+            // Show HUD
+            document.getElementById('hud-title').textContent = dest.name;
+            document.getElementById('hud-eta').textContent =
+                fmtDist(routeInfo.distance) + '  \u00B7  ~' + Math.round(routeInfo.duration / 60) + ' min walk';
+            document.getElementById('hud').style.display = 'flex';
+            document.getElementById('back-btn').style.display = '';
+            document.getElementById('start-screen').style.display = 'none';
+
+        } catch (err) {
+            btn.disabled = false;
+            statusEl.style.display = 'none';
+            errorEl.textContent = err.message || 'Could not start AR.';
+            errorEl.style.display = 'block';
+            console.error('AR start error:', err);
+        }
+    });
+
+    // ================================================================
+    //  BACK / STOP
+    // ================================================================
+    document.getElementById('back-btn').addEventListener('click', function () {
+        document.getElementById('scene-container').innerHTML = '';
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('back-btn').style.display = 'none';
+        document.getElementById('start-screen').style.display = '';
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('start-status').style.display = 'none';
+        routeWaypoints = [];
+        routeSteps = [];
+        currentStepIndex = 0;
+    });
+
+    // ================================================================
+    //  A-FRAME COMPONENT: AR route navigation
+    // ================================================================
+    function registerARComponent() {
+        AFRAME.registerComponent('ar-route-nav', {
+            schema: { destName: { type: 'string', default: 'Destination' } },
+
+            init: function () {
+                this.deviceHeading = undefined;
+                this.pos = null;
+
+                this.watchId = navigator.geolocation.watchPosition(
+                    this.onPosition.bind(this),
+                    function () {},
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+                );
+
+                window.addEventListener('deviceorientation', this.onOrientation.bind(this));
+                window.addEventListener('deviceorientationabsolute', this.onOrientation.bind(this));
+            },
+
+            remove: function () {
+                if (this.watchId !== undefined) navigator.geolocation.clearWatch(this.watchId);
+            },
+
+            onPosition: function (p) {
+                this.pos = { lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude || 0 };
+                userLat = this.pos.lat;
+                userLng = this.pos.lng;
+                this.update3D();
+            },
+
+            onOrientation: function (e) {
+                if (e.absolute && e.alpha !== null) {
+                    this.deviceHeading = 360 - e.alpha;
+                } else if (e.webkitCompassHeading !== undefined) {
+                    this.deviceHeading = e.webkitCompassHeading;
+                } else if (e.alpha !== null) {
+                    this.deviceHeading = 360 - e.alpha;
+                }
+                this.update3D();
+            },
+
+            update3D: function () {
+                if (!this.pos || this.deviceHeading === undefined) return;
+                var me = this.pos;
+                var head = this.deviceHeading;
+
+                // ── Advance current step when close enough ──
+                if (routeSteps.length > 0 && currentStepIndex < routeSteps.length - 1) {
+                    var cs = routeSteps[currentStepIndex + 1];
+                    if (haversine(me.lat, me.lng, cs.lat, cs.lng) < 15) {
+                        currentStepIndex++;
                     }
                 }
 
-                // Request camera access
-                statusEl.textContent = 'Accessing camera...';
-                var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                // Stop the test stream — A-Frame will request its own
-                stream.getTracks().forEach(function (t) { t.stop(); });
+                // ── Update HUD step instruction ──
+                if (routeSteps.length > 0) {
+                    var step = routeSteps[currentStepIndex];
+                    var nextStep = routeSteps[Math.min(currentStepIndex + 1, routeSteps.length - 1)];
+                    var distToNext = haversine(me.lat, me.lng, nextStep.lat, nextStep.lng);
+                    document.getElementById('step-icon').textContent = nextStep.icon;
+                    document.getElementById('step-text').textContent =
+                        nextStep.instruction + ' in ' + fmtDist(distToNext);
 
-                // Load A-Frame + AR.js dynamically
-                statusEl.textContent = 'Loading AR engine...';
-                await loadScript('https://aframe.io/releases/1.4.2/aframe.min.js');
-                await loadScript('https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js');
+                    // Update total remaining
+                    var dest = LOCATIONS[selectedIndex];
+                    var totalDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
+                    var eta = totalDist / 1.4; // ~walking speed m/s
+                    document.getElementById('hud-eta').textContent =
+                        fmtDist(totalDist) + '  \u00B7  ~' + Math.max(1, Math.round(eta / 60)) + ' min walk';
+                }
 
-                // Register our component now that AFRAME is available
-                registerARComponent();
+                // ── Position waypoint spheres in AR ──
+                var wpEls = this.el.querySelectorAll('.wp');
+                for (var i = 0; i < wpEls.length; i++) {
+                    var idx = parseInt(wpEls[i].getAttribute('data-idx'));
+                    var wp = routeWaypoints[idx];
+                    if (!wp) continue;
 
-                // Inject the scene into the DOM
-                statusEl.textContent = 'Starting AR...';
-                document.getElementById('scene-container').innerHTML =
-                    '<a-scene' +
-                    '  vr-mode-ui="enabled: false"' +
-                    '  embedded' +
-                    '  arjs="sourceType: webcam; debugUIEnabled: false;"' +
-                    '  renderer="antialias: true; alpha: true"' +
-                    '  ar-location-based>' +
-                    '  <a-entity camera></a-entity>' +
-                    '  <a-entity id="destination-pin" visible="false">' +
-                    '    <a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>' +
-                    '    <a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>' +
-                    '    <a-text value="MALL" align="center" position="0 1.75 0" color="#ffffff" scale="2 2 2"></a-text>' +
-                    '  </a-entity>' +
-                    '</a-scene>';
+                    var dist = haversine(me.lat, me.lng, wp.lat, wp.lng);
+                    var brng = bearing(me.lat, me.lng, wp.lat, wp.lng);
+                    var rel = ((brng - head + 360) % 360);
+                    var inFov = rel < 40 || rel > 320;
 
-                // Hide start screen, show HUD
-                document.getElementById('start-screen').style.display = 'none';
-                document.getElementById('hud').style.display = '';
+                    // Only show waypoints within 200m and in a wide FOV
+                    if (dist < 200 && inFov) {
+                        var rad = rel < 180 ? rel : rel - 360;
+                        var radRad = rad * Math.PI / 180;
+                        var zDist = Math.min(20, dist / 5);
+                        var xPos = Math.sin(radRad) * zDist;
+                        var zPos = -Math.cos(radRad) * zDist;
 
-            } catch (err) {
-                btn.disabled = false;
-                statusEl.style.display = 'none';
-                errorEl.textContent = err.message || 'Could not start AR. Check camera & location permissions.';
-                errorEl.style.display = 'block';
-                console.error('AR start error:', err);
+                        wpEls[i].setAttribute('visible', true);
+                        wpEls[i].setAttribute('position', { x: xPos, y: -0.5, z: zPos });
+                        wpEls[i].setAttribute('color', dist < 10 ? '#00FF88' : '#00BFFF');
+                    } else {
+                        wpEls[i].setAttribute('visible', false);
+                    }
+                }
+
+                // ── Destination pin ──
+                var dest = LOCATIONS[selectedIndex];
+                var destDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
+                var destBrng = bearing(me.lat, me.lng, dest.lat, dest.lng);
+                var destRel = ((destBrng - head + 360) % 360);
+                var destInView = destRel < 20 || destRel > 340;
+
+                var pin = document.getElementById('destination-pin');
+                if (pin) {
+                    pin.setAttribute('visible', destInView && destDist < 2000);
+                    if (destInView) {
+                        var s = Math.min(50, Math.max(0.5, destDist / 100));
+                        pin.setAttribute('position', { x: 0, y: 0, z: -s });
+                        pin.setAttribute('scale', { x: 1 / s, y: 1 / s, z: 1 / s });
+                    }
+                }
             }
         });
-
-        // ── AR location-based navigation component ──
-        function registerARComponent() {
-            AFRAME.registerComponent('ar-location-based', {
-                init: function () {
-                    this.currentPosition = null;
-                    this.destinationPosition = null;
-                    this.deviceHeading = undefined;
-                    this.distanceElement = document.getElementById('distance-info');
-                    this.directionElement = document.getElementById('direction-info');
-
-                    // Start GPS tracking
-                    if (!navigator.geolocation) {
-                        this.directionElement.textContent = 'Geolocation not supported';
-                        return;
-                    }
-
-                    this.watchId = navigator.geolocation.watchPosition(
-                        this.updateCurrentPosition.bind(this),
-                        this.handleError.bind(this),
-                        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-                    );
-
-                    // Default destination (NYC — change these coordinates to your target)
-                    this.setDestination(40.7128, -74.0060, 0, 'Shopping Mall');
-
-                    // Compass / device orientation
-                    window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
-                    window.addEventListener('deviceorientationabsolute', this.handleOrientation.bind(this));
-                },
-
-                remove: function () {
-                    if (this.watchId !== undefined) {
-                        navigator.geolocation.clearWatch(this.watchId);
-                    }
-                },
-
-                updateCurrentPosition: function (position) {
-                    this.currentPosition = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        altitude: position.coords.altitude || 0
-                    };
-                    this.updateARElements();
-                },
-
-                setDestination: function (latitude, longitude, altitude, name) {
-                    this.destinationPosition = {
-                        latitude: latitude,
-                        longitude: longitude,
-                        altitude: altitude || 0,
-                        name: name || 'Destination'
-                    };
-                },
-
-                // Haversine distance (meters)
-                calculateDistance: function () {
-                    if (!this.currentPosition || !this.destinationPosition) return null;
-
-                    var R = 6371000;
-                    var lat1 = this.toRad(this.currentPosition.latitude);
-                    var lat2 = this.toRad(this.destinationPosition.latitude);
-                    var dLat = this.toRad(this.destinationPosition.latitude - this.currentPosition.latitude);
-                    var dLon = this.toRad(this.destinationPosition.longitude - this.currentPosition.longitude);
-
-                    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                },
-
-                // Bearing to destination (degrees from north)
-                calculateBearing: function () {
-                    if (!this.currentPosition || !this.destinationPosition) return null;
-
-                    var lat1 = this.toRad(this.currentPosition.latitude);
-                    var lat2 = this.toRad(this.destinationPosition.latitude);
-                    var dLon = this.toRad(this.destinationPosition.longitude - this.currentPosition.longitude);
-
-                    var y = Math.sin(dLon) * Math.cos(lat2);
-                    var x = Math.cos(lat1) * Math.sin(lat2) -
-                            Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-                    return (this.toDeg(Math.atan2(y, x)) + 360) % 360;
-                },
-
-                // Device compass
-                handleOrientation: function (event) {
-                    if (event.absolute && event.alpha !== null) {
-                        this.deviceHeading = 360 - event.alpha;
-                    } else if (event.webkitCompassHeading !== undefined) {
-                        this.deviceHeading = event.webkitCompassHeading;
-                    } else if (event.alpha !== null) {
-                        this.deviceHeading = 360 - event.alpha;
-                    }
-                    this.updateARElements();
-                },
-
-                // Update HUD + AR pin
-                updateARElements: function () {
-                    if (!this.currentPosition || !this.destinationPosition || this.deviceHeading === undefined) return;
-
-                    var distance = this.calculateDistance();
-                    var bearing = this.calculateBearing();
-                    var relativeBearing = (bearing - this.deviceHeading + 360) % 360;
-                    var inView = relativeBearing < 20 || relativeBearing > 340;
-
-                    // HUD — distance
-                    if (this.distanceElement) {
-                        var text = distance < 1000
-                            ? Math.round(distance) + ' m'
-                            : (distance / 1000).toFixed(1) + ' km';
-                        this.distanceElement.textContent = this.destinationPosition.name + ': ' + text;
-                    }
-
-                    // HUD — direction
-                    if (this.directionElement) {
-                        if (inView) {
-                            this.directionElement.textContent = 'Destination in view!';
-                        } else if (relativeBearing > 180) {
-                            this.directionElement.textContent = '\u21B0 Turn left';
-                        } else {
-                            this.directionElement.textContent = '\u21B1 Turn right';
-                        }
-                    }
-
-                    // AR pin
-                    var pin = document.getElementById('destination-pin');
-                    if (!pin) return;
-
-                    pin.setAttribute('visible', inView);
-                    if (inView) {
-                        var altDiff = (this.destinationPosition.altitude || 0) - (this.currentPosition.altitude || 0);
-                        var scale = Math.min(100, Math.max(0.5, distance / 100));
-
-                        pin.setAttribute('position', { x: 0, y: altDiff > 10 ? 2 : 0, z: -scale });
-                        pin.setAttribute('scale', { x: 1 / scale, y: 1 / scale, z: 1 / scale });
-                    }
-                },
-
-                handleError: function (error) {
-                    console.error('Geolocation error:', error);
-                    if (this.directionElement) {
-                        this.directionElement.textContent = 'Location error \u2014 check GPS permissions';
-                    }
-                },
-
-                toRad: function (d) { return d * Math.PI / 180; },
-                toDeg: function (r) { return r * 180 / Math.PI; }
-            });
-        }
+    }
     </script>
 </body>
 </html>
