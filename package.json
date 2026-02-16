@@ -1,0 +1,14 @@
+{
+  "name": "ar-nav",
+  "version": "1.0.0",
+  "description": "AR Navigation app using A-Frame and AR.js — GPS-based augmented reality directions",
+  "scripts": {
+    "start": "serve -l 8080"
+  },
+  "keywords": ["ar", "augmented-reality", "aframe", "arjs", "navigation", "gps"],
+  "author": "Vii-Hunnid",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}
