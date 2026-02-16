@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>AR Navigation</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -124,7 +124,7 @@
         /* ── BIG CENTERED ARROW ── */
         #center-arrow-container {
             position: fixed;
-            top: 35%; /* Moved up from center */
+            top: 55%; /* Moved down */
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 9998;
@@ -132,11 +132,11 @@
             pointer-events: none;
         }
         
-        /* Enhanced bolder arrow */
+        /* Minimised arrow */
         #big-arrow {
-            width: 120px;
-            height: 120px;
-            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6));
+            width: 64px; /* Reduced size */
+            height: 64px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
             transition: transform 0.3s ease, color 0.3s;
         }
         
@@ -145,7 +145,7 @@
             height: 100%;
             fill: #00BFFF;
             stroke: white;
-            stroke-width: 3px;
+            stroke-width: 2px;
         }
 
         #big-arrow.recalculating {
@@ -323,6 +323,33 @@
             font-size: 14px; cursor: pointer; margin-bottom: 16px;
             font-weight: bold;
         }
+
+        /* ── DATA MANAGEMENT ── */
+        #data-management {
+            width: 100%; max-width: 360px;
+            margin-top: 20px; padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .data-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.7); padding: 10px 16px; border-radius: 10px;
+            font-size: 13px; cursor: pointer; margin-right: 8px; margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .data-btn:hover { background: rgba(255,255,255,0.1); }
+
+        .data-btn.danger { 
+            border-color: #ff6b6b; color: #ff6b6b; 
+        }
+
+        .data-btn.danger:hover { background: rgba(255,107,107,0.1); }
+
+        .storage-info {
+            font-size: 12px; color: rgba(255,255,255,0.4);
+            margin-top: 10px; text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -351,6 +378,16 @@
         <button id="start-btn">Navigate</button>
         <div id="start-status"></div>
         <div id="start-error"></div>
+
+        <!-- Data Management Section -->
+        <div id="data-management">
+            <div class="section-label">Data Management</div>
+            <button class="data-btn" onclick="exportData()">📥 Export Data</button>
+            <button class="data-btn" onclick="document.getElementById('import-file').click()">📤 Import Data</button>
+            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(this)">
+            <button class="data-btn danger" onclick="clearAllData()">🗑️ Clear All Data</button>
+            <div class="storage-info" id="storage-info">Loading storage info...</div>
+        </div>
     </div>
 
     <!-- POI Form -->
@@ -439,9 +476,9 @@
         { name: 'The Zone @ Rosebank',    lat: -26.1468, lng: 28.0445 }
     ];
 
-    var STORAGE_KEY = 'ar_nav_locations';
-    var SETTINGS_KEY = 'ar_nav_settings';
-    var USER_POIS_KEY = 'ar_nav_pois';
+    var STORAGE_KEY = 'ar_nav_locations_v2'; // Versioned to prevent conflicts
+    var SETTINGS_KEY = 'ar_nav_settings_v2';
+    var USER_POIS_KEY = 'ar_nav_pois_v2';
 
     // Settings with defaults
     var settings = {
@@ -451,27 +488,42 @@
         poi: true
     };
 
-    // Load settings
-    try {
-        var savedSettings = localStorage.getItem(SETTINGS_KEY);
-        if (savedSettings) settings = JSON.parse(savedSettings);
-    } catch (e) {}
+    // Load settings with error handling
+    function loadSettings() {
+        try {
+            var savedSettings = localStorage.getItem(SETTINGS_KEY);
+            if (savedSettings) {
+                var parsed = JSON.parse(savedSettings);
+                // Merge with defaults to ensure all keys exist
+                settings = Object.assign({}, settings, parsed);
+            }
+        } catch (e) {
+            console.error('Error loading settings:', e);
+        }
+    }
 
     function saveSettings() {
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+        try {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            updateStorageInfo();
+        } catch (e) {
+            console.error('Error saving settings:', e);
+            alert('Failed to save settings. Storage may be full.');
+        }
     }
 
     function toggleSetting(key) {
         settings[key] = !settings[key];
-        document.getElementById('toggle-' + key).classList.toggle('active', settings[key]);
+        var el = document.getElementById('toggle-' + key);
+        if (el) el.classList.toggle('active', settings[key]);
         saveSettings();
         
-        // Immediate effects
         if (key === 'camera') toggleCameraMode();
         if (key === 'voice' && !settings.voice) window.speechSynthesis.cancel();
     }
 
     // Initialize toggles
+    loadSettings();
     Object.keys(settings).forEach(function(key) {
         var el = document.getElementById('toggle-' + key);
         if (el) el.classList.toggle('active', settings[key]);
@@ -481,14 +533,31 @@
     //  USER POIs (Points of Interest)
     // ================================================================
     var userPois = [];
-    try {
-        var savedPois = localStorage.getItem(USER_POIS_KEY);
-        if (savedPois) userPois = JSON.parse(savedPois);
-    } catch (e) {}
+
+    function loadUserPois() {
+        try {
+            var savedPois = localStorage.getItem(USER_POIS_KEY);
+            if (savedPois) {
+                userPois = JSON.parse(savedPois);
+                if (!Array.isArray(userPois)) userPois = [];
+            }
+        } catch (e) {
+            console.error('Error loading POIs:', e);
+            userPois = [];
+        }
+    }
 
     function saveUserPois() {
-        try { localStorage.setItem(USER_POIS_KEY, JSON.stringify(userPois)); } catch (e) {}
+        try {
+            localStorage.setItem(USER_POIS_KEY, JSON.stringify(userPois));
+            updateStorageInfo();
+        } catch (e) {
+            console.error('Error saving POIs:', e);
+            alert('Failed to save POI. Storage may be full.');
+        }
     }
+
+    loadUserPois();
 
     document.getElementById('add-poi-btn').addEventListener('click', function() {
         document.getElementById('poi-form').style.display = 'block';
@@ -523,7 +592,7 @@
             lat: coords.lat,
             lng: coords.lng,
             notes: notes,
-            color: '#' + Math.floor(Math.random()*16777215).toString(16),
+            color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
             createdAt: new Date().toISOString()
         };
         
@@ -531,29 +600,228 @@
         saveUserPois();
         closePoiForm();
         
-        // Add to destinations temporarily for navigation
+        // Add to destinations for immediate use
         addLocation(name, coords.lat, coords.lng, notes);
+        
+        // Visual feedback
+        haptic([50]);
     }
 
     // ================================================================
-    //  LOCATIONS MANAGEMENT
+    //  DATA MANAGEMENT - EXPORT/IMPORT/CLEAR
+    // ================================================================
+    function updateStorageInfo() {
+        var info = document.getElementById('storage-info');
+        if (!info) return;
+        
+        try {
+            var total = 0;
+            for (var key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    total += localStorage[key].length * 2; // UTF-16 encoding
+                }
+            }
+            var kb = (total / 1024).toFixed(2);
+            var locCount = LOCATIONS.filter(function(l) { return l.userAdded; }).length;
+            var poiCount = userPois.length;
+            
+            info.innerHTML = 'Storage: ' + kb + ' KB | Saved locations: ' + locCount + ' | POIs: ' + poiCount;
+        } catch (e) {
+            info.textContent = 'Storage info unavailable';
+        }
+    }
+
+    function exportData() {
+        var data = {
+            version: '2.0',
+            exportedAt: new Date().toISOString(),
+            locations: LOCATIONS.filter(function(l) { return l.userAdded; }),
+            pois: userPois,
+            settings: settings
+        };
+        
+        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'ar-nav-backup-' + new Date().toISOString().split('T')[0] + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importData(input) {
+        var file = input.files[0];
+        if (!file) return;
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var data = JSON.parse(e.target.result);
+                
+                // Validate data structure
+                if (!data.locations || !Array.isArray(data.locations)) {
+                    throw new Error('Invalid backup file: missing locations');
+                }
+                
+                // Confirm import
+                var msg = 'Import ' + data.locations.length + ' locations';
+                if (data.pois) msg += ' and ' + data.pois.length + ' POIs';
+                msg += '? This will merge with existing data.';
+                
+                if (!confirm(msg)) return;
+                
+                // Merge locations (avoid duplicates)
+                var addedCount = 0;
+                data.locations.forEach(function(loc) {
+                    var exists = LOCATIONS.some(function(l) {
+                        return Math.abs(l.lat - loc.lat) < 0.0005 && Math.abs(l.lng - loc.lng) < 0.0005;
+                    });
+                    if (!exists) {
+                        LOCATIONS.push(Object.assign({ userAdded: true }, loc));
+                        addedCount++;
+                    }
+                });
+                
+                // Merge POIs
+                if (data.pois && Array.isArray(data.pois)) {
+                    data.pois.forEach(function(poi) {
+                        var exists = userPois.some(function(p) { return p.id === poi.id; });
+                        if (!exists) {
+                            userPois.push(poi);
+                        }
+                    });
+                    saveUserPois();
+                }
+                
+                // Import settings if present
+                if (data.settings) {
+                    settings = Object.assign({}, settings, data.settings);
+                    saveSettings();
+                    // Update UI toggles
+                    Object.keys(settings).forEach(function(key) {
+                        var el = document.getElementById('toggle-' + key);
+                        if (el) el.classList.toggle('active', settings[key]);
+                    });
+                }
+                
+                saveUserLocations();
+                renderList();
+                updateListDistances();
+                updateStorageInfo();
+                
+                alert('Import complete! Added ' + addedCount + ' new locations.');
+                haptic([100, 50, 100]);
+                
+            } catch (err) {
+                alert('Import failed: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        input.value = ''; // Reset input
+    }
+
+    function clearAllData() {
+        var msg = '⚠️ WARNING: This will permanently delete ALL your saved locations, POIs, and settings.\n\n';
+        msg += 'This cannot be undone. Consider exporting your data first.\n\n';
+        msg += 'Type "DELETE" to confirm:';
+        
+        var confirm = prompt(msg);
+        if (confirm !== 'DELETE') {
+            if (confirm !== null) alert('Deletion cancelled. Type "DELETE" in all caps to confirm.');
+            return;
+        }
+        
+        try {
+            // Clear all app data
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(SETTINGS_KEY);
+            localStorage.removeItem(USER_POIS_KEY);
+            
+            // Reset variables
+            userPois = [];
+            settings = {
+                camera: true,
+                voice: true,
+                haptic: true,
+                poi: true
+            };
+            
+            // Reload locations (will reset to defaults only)
+            LOCATIONS = loadLocations();
+            renderList();
+            updateListDistances();
+            updateStorageInfo();
+            
+            // Reset UI toggles
+            Object.keys(settings).forEach(function(key) {
+                var el = document.getElementById('toggle-' + key);
+                if (el) el.classList.toggle('active', settings[key]);
+            });
+            
+            alert('All data cleared successfully. App reset to defaults.');
+            haptic([200, 100, 200]);
+            
+        } catch (e) {
+            alert('Error clearing data: ' + e.message);
+        }
+    }
+
+    // ================================================================
+    //  LOCATIONS MANAGEMENT (FIXED)
     // ================================================================
     function loadLocations() {
         var saved = [];
-        try { var raw = localStorage.getItem(STORAGE_KEY); if (raw) saved = JSON.parse(raw); } catch (e) {}
-        var merged = DEFAULT_LOCATIONS.map(function (d) { return Object.assign({}, d); });
-        saved.forEach(function (s) {
-            if (!merged.some(function (m) { return m.name === s.name; }))
-                merged.push(Object.assign({ userAdded: true, notes: s.notes }, s));
+        try { 
+            var raw = localStorage.getItem(STORAGE_KEY); 
+            if (raw) {
+                saved = JSON.parse(raw);
+                if (!Array.isArray(saved)) saved = [];
+            }
+        } catch (e) {
+            console.error('Error loading locations:', e);
+            saved = [];
+        }
+        
+        // Start with fresh copy of defaults
+        var merged = DEFAULT_LOCATIONS.map(function (d) { 
+            return Object.assign({}, d); 
         });
+        
+        // Add saved user locations
+        saved.forEach(function (s) {
+            // Check for duplicates by coordinates
+            var exists = merged.some(function (m) { 
+                return Math.abs(m.lat - s.lat) < 0.0005 && Math.abs(m.lng - s.lng) < 0.0005;
+            });
+            if (!exists) {
+                merged.push(Object.assign({ userAdded: true }, s));
+            }
+        });
+        
         return merged;
     }
 
     function saveUserLocations() {
-        var toSave = LOCATIONS.filter(function (l) { return l.userAdded; }).map(function (l) {
-            return { name: l.name, lat: l.lat, lng: l.notes, notes: l.notes };
-        });
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave)); } catch (e) {}
+        try { 
+            var toSave = LOCATIONS.filter(function (l) { 
+                return l.userAdded; 
+            }).map(function (l) {
+                // Only save necessary fields
+                return { 
+                    name: l.name, 
+                    lat: l.lat, 
+                    lng: l.lng,
+                    notes: l.notes || ''
+                };
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+            updateStorageInfo();
+        } catch (e) {
+            console.error('Error saving locations:', e);
+            alert('Failed to save location. Storage may be full or disabled.');
+        }
     }
 
     var LOCATIONS = loadLocations();
@@ -563,8 +831,8 @@
     // ================================================================
     var selectedIndex = -1;
     var userLat = null, userLng = null, userSpeed = null;
-    var userHeading = null; // GPS-based heading from movement
-    var deviceHeading = null; // Compass heading
+    var userHeading = null;
+    var deviceHeading = null;
     var routeWaypoints = [], routeSteps = [], currentStepIndex = 0;
     var searchTimer = null;
     var travelMode = 'foot';
@@ -583,11 +851,10 @@
     function speak(text, priority) {
         if (!settings.voice || !synth) return;
         
-        // Cancel current speech if urgent
         if (priority === 'urgent') {
             synth.cancel();
         } else if (synth.speaking) {
-            return; // Don't interrupt normal speech
+            return;
         }
         
         var utterance = new SpeechSynthesisUtterance(text);
@@ -595,7 +862,6 @@
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
         
-        // Try to use a good English voice
         var voices = synth.getVoices();
         var preferredVoice = voices.find(function(v) { 
             return v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel');
@@ -613,7 +879,6 @@
         var step = routeSteps[stepIndex];
         var text = step.instruction;
         
-        // Add distance context for upcoming turns
         if (distance > 50) {
             text = 'In ' + fmtDist(distance) + ', ' + text;
         } else {
@@ -697,7 +962,7 @@
     }
 
     // ================================================================
-    //  ROUTE RECALCULATION LOGIC
+    //  ROUTE RECALCULATION
     // ================================================================
     function checkRouteDeviation() {
         if (!isNavigating || !routeSteps.length || currentStepIndex >= routeSteps.length - 1) return;
@@ -705,11 +970,8 @@
         var nextStep = routeSteps[currentStepIndex + 1];
         var distToNext = haversine(userLat, userLng, nextStep.lat, nextStep.lng);
         
-        // Check if we're moving away from the next waypoint
-        if (distToNext > 100) { // More than 100m from expected path
+        if (distToNext > 100) {
             routeDeviationCount++;
-            
-            // Trigger recalculation if consistently off-route
             if (routeDeviationCount > 3) {
                 recalculateRoute();
             }
@@ -720,13 +982,12 @@
 
     function recalculateRoute() {
         var now = Date.now();
-        if (now - lastRecalcTime < 5000) return; // Debounce: max every 5 seconds
+        if (now - lastRecalcTime < 5000) return;
         lastRecalcTime = now;
         
         var dest = LOCATIONS[selectedIndex];
         if (!dest) return;
         
-        // Show recalculating UI
         document.getElementById('recalc-toast').style.display = 'block';
         document.getElementById('big-arrow').classList.add('recalculating');
         speak('Recalculating route', 'urgent');
@@ -755,12 +1016,10 @@
         var bigArrow = document.getElementById('center-arrow-container');
         
         if (!settings.camera) {
-            // Camera off mode: Big arrow only
             if (scene) scene.style.display = 'none';
             bigArrow.style.display = 'block';
             cameraActive = false;
         } else {
-            // Camera on mode
             if (scene) scene.style.display = '';
             cameraActive = true;
         }
@@ -979,7 +1238,6 @@
             userLat = pos.coords.latitude; userLng = pos.coords.longitude;
             userSpeed = pos.coords.speed;
             
-            // Calculate GPS-based heading from movement
             if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
                 userHeading = pos.coords.heading;
             }
@@ -1094,7 +1352,6 @@
                 wpEntities += '<a-sphere class="wp" data-idx="' + i + '" radius="0.15" color="#00BFFF" opacity="0.8" visible="false"></a-sphere>';
             }
 
-            // Add user POIs as AR cards if enabled
             var poiEntities = '';
             if (settings.poi) {
                 userPois.forEach(function(poi, idx) {
@@ -1138,7 +1395,6 @@
             updateRoutePathUI();
             haptic([50, 30, 50]);
             
-            // Welcome announcement
             if (routeSteps[1]) {
                 speak('Starting navigation. ' + routeSteps[1].instruction + ' in ' + fmtDist(routeSteps[1].distance), 'normal');
             }
@@ -1172,14 +1428,16 @@
         renderList(); updateListDistances();
     });
 
-    // Settings button toggle
     document.getElementById('settings-btn').addEventListener('click', function() {
         var panel = document.getElementById('settings-panel');
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     });
 
+    // Initialize storage info display
+    updateStorageInfo();
+
     // ================================================================
-    //  A-FRAME COMPONENT (ENHANCED)
+    //  A-FRAME COMPONENT
     // ================================================================
     function registerARComponent() {
         AFRAME.registerComponent('ar-route-nav', {
@@ -1199,7 +1457,6 @@
             onPosition: function (p) {
                 this.pos = { lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude || 0 };
                 
-                // Calculate movement heading if we have previous position
                 if (this.lastPos && (p.coords.speed === null || p.coords.speed === undefined)) {
                     userHeading = bearingTo(this.lastPos.lat, this.lastPos.lng, this.pos.lat, this.pos.lng);
                 } else if (p.coords.heading !== null && p.coords.heading !== undefined) {
@@ -1225,20 +1482,17 @@
             update3D: function () {
                 if (!this.pos) return;
                 
-                // Use best available heading: GPS movement > Compass
                 var effectiveHeading = userHeading !== null ? userHeading : this.deviceHeading;
                 if (effectiveHeading === undefined) return;
                 
                 var me = this.pos, head = effectiveHeading;
 
-                // Advance step logic with distance check
                 if (routeSteps.length > 0 && currentStepIndex < routeSteps.length - 1) {
                     var cs = routeSteps[currentStepIndex + 1];
                     var distToNext = haversine(me.lat, me.lng, cs.lat, cs.lng);
                     
                     if (distToNext < 15) {
                         currentStepIndex++;
-                        // Announce step advancement
                         if (currentStepIndex < routeSteps.length - 1) {
                             var nextStep = routeSteps[currentStepIndex + 1];
                             var nextDist = haversine(me.lat, me.lng, nextStep.lat, nextStep.lng);
@@ -1247,13 +1501,11 @@
                     }
                 }
 
-                // Haptic on step change
                 if (currentStepIndex !== prevStepIndex) {
                     if (prevStepIndex >= 0) haptic([40, 20, 40]);
                     prevStepIndex = currentStepIndex;
                 }
 
-                // HUD updates
                 if (routeSteps.length > 0) {
                     var nextStepIdx = Math.min(currentStepIndex + 1, routeSteps.length - 1);
                     var nextStep = routeSteps[nextStepIdx];
@@ -1262,31 +1514,26 @@
                     document.getElementById('step-text').textContent =
                         nextStep.instruction + ' in ' + fmtDist(distToNext);
 
-                    // Update arrow rotation - points to destination bearing
                     var dest = LOCATIONS[selectedIndex];
                     var brngToDest = bearingTo(me.lat, me.lng, dest.lat, dest.lng);
                     var arrowRot = ((brngToDest - head + 360) % 360);
                     
-                    // Update both arrows
                     var bigArrow = document.getElementById('big-arrow');
                     var navArrow = document.getElementById('nav-arrow');
                     
                     if (bigArrow) bigArrow.style.transform = 'translate(-50%, -50%) rotate(' + arrowRot + 'deg)';
                     if (navArrow) navArrow.style.transform = 'rotate(' + arrowRot + 'deg)';
                     
-                    // Color coding based on proximity
                     if (distToNext < 30) {
-                        if (bigArrow) bigArrow.querySelector('svg').style.fill = '#00FF88'; // Green when close
+                        if (bigArrow) bigArrow.querySelector('svg').style.fill = '#00FF88';
                     } else {
-                        if (bigArrow) bigArrow.querySelector('svg').style.fill = '#00BFFF'; // Blue normal
+                        if (bigArrow) bigArrow.querySelector('svg').style.fill = '#00BFFF';
                     }
 
-                    // Voice announcements at milestones
                     if (distToNext < 50 && nextStepIdx !== lastSpokenStep && nextStepIdx < routeSteps.length - 1) {
                         announceStep(nextStepIdx, distToNext);
                     }
 
-                    // Dest totals
                     var totalDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
                     var speed = (travelMode === 'car') ? 8.3 : 1.4;
                     if (userSpeed > 0.5) speed = userSpeed;
@@ -1295,7 +1542,6 @@
                     document.getElementById('hud-eta').textContent =
                         fmtDist(totalDist) + '  ·  ~' + Math.max(1, Math.round(eta / 60)) + ' min ' + modeLabel;
                     
-                    // Arrival detection
                     if (totalDist < 20 && lastSpokenStep !== -2) {
                         lastSpokenStep = -2;
                         speak('You have arrived at ' + dest.name, 'urgent');
@@ -1303,15 +1549,12 @@
                     }
                 }
 
-                // Compass heading + speed
                 document.getElementById('hud-heading').textContent =
                     cardinal(head) + ' ' + Math.round(head) + '°';
                 document.getElementById('hud-speed').textContent = fmtSpeed(userSpeed);
 
-                // Only render 3D if camera is active
                 if (!cameraActive) return;
 
-                // Waypoint spheres
                 var wpEls = this.el.querySelectorAll('.wp');
                 for (var i = 0; i < wpEls.length; i++) {
                     var idx = parseInt(wpEls[i].getAttribute('data-idx'));
@@ -1334,7 +1577,6 @@
                     }
                 }
 
-                // User POI markers
                 if (settings.poi) {
                     var poiEls = this.el.querySelectorAll('.poi-marker');
                     poiEls.forEach(function(el) {
@@ -1355,7 +1597,6 @@
                     });
                 }
 
-                // Destination pin
                 var dest = LOCATIONS[selectedIndex];
                 var destDist = haversine(me.lat, me.lng, dest.lat, dest.lng);
                 var destBrng = bearingTo(me.lat, me.lng, dest.lat, dest.lng);
