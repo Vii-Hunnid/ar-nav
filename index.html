@@ -6,16 +6,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>AR Navigation</title>
 
-    <!-- A-Frame 1.4.2 (pinned) -->
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <!-- AR.js with location-based support (pinned to 3.4.5) -->
-    <script src="https://unpkg.com/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
-
     <style>
         * { margin: 0; padding: 0; }
-        body { overflow: hidden; font-family: Arial, sans-serif; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
 
-        /* Start screen - user gesture required for camera + sensors */
+        /* Start screen */
         #start-screen {
             position: fixed;
             inset: 0;
@@ -50,8 +45,14 @@
             transition: transform 0.2s;
         }
         #start-btn:active { transform: scale(0.95); }
-        #start-error {
+        #start-status {
             margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+            display: none;
+        }
+        #start-error {
+            margin-top: 10px;
             color: #ff6b6b;
             font-size: 14px;
             display: none;
@@ -67,7 +68,7 @@
             color: white;
             padding: 12px 24px;
             border-radius: 20px;
-            z-index: 999;
+            z-index: 9999;
             text-align: center;
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
@@ -85,11 +86,12 @@
 </head>
 <body>
 
-    <!-- Start screen: required user gesture to unlock camera + device sensors -->
+    <!-- Start screen -->
     <div id="start-screen">
         <h1>AR Navigation</h1>
         <p>Point your camera and get real-time directions to your destination</p>
         <button id="start-btn">Start AR</button>
+        <div id="start-status"></div>
         <div id="start-error"></div>
     </div>
 
@@ -99,53 +101,79 @@
         <div id="direction-info">Finding direction...</div>
     </div>
 
-    <!-- A-Frame AR scene (hidden until AR starts) -->
-    <a-scene
-        id="ar-scene"
-        vr-mode-ui="enabled: false"
-        embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;"
-        renderer="antialias: true; alpha: true"
-        style="display: none;">
-
-        <a-entity camera></a-entity>
-
-        <!-- Destination pin — positioned dynamically by JS -->
-        <a-entity id="destination-pin" visible="false">
-            <a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>
-            <a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>
-            <a-text value="MALL" align="center" position="0 1.75 0" color="#ffffff" scale="2 2 2"></a-text>
-        </a-entity>
-    </a-scene>
+    <!-- AR scene container — populated dynamically after scripts load -->
+    <div id="scene-container"></div>
 
     <script>
-        // ── Start button: request permissions then boot AR ──
+        // ── Helper: load a script and return a promise ──
+        function loadScript(src) {
+            return new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = function () { reject(new Error('Failed to load ' + src)); };
+                document.head.appendChild(s);
+            });
+        }
+
+        // ── Start button ──
         document.getElementById('start-btn').addEventListener('click', async function () {
-            const errorEl = document.getElementById('start-error');
+            var btn = document.getElementById('start-btn');
+            var statusEl = document.getElementById('start-status');
+            var errorEl = document.getElementById('start-error');
+            btn.disabled = true;
             errorEl.style.display = 'none';
+            statusEl.style.display = 'block';
+            statusEl.textContent = 'Requesting permissions...';
 
             try {
                 // iOS 13+ requires explicit permission for DeviceOrientation
                 if (typeof DeviceOrientationEvent !== 'undefined' &&
                     typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    const response = await DeviceOrientationEvent.requestPermission();
+                    var response = await DeviceOrientationEvent.requestPermission();
                     if (response !== 'granted') {
                         throw new Error('Compass permission denied. Please allow motion access.');
                     }
                 }
 
-                // Request camera access early so we get a clear error if denied
-                await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // Request camera access
+                statusEl.textContent = 'Accessing camera...';
+                var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // Stop the test stream — A-Frame will request its own
+                stream.getTracks().forEach(function (t) { t.stop(); });
 
-                // Everything granted — show the AR scene
+                // Load A-Frame + AR.js dynamically
+                statusEl.textContent = 'Loading AR engine...';
+                await loadScript('https://aframe.io/releases/1.4.2/aframe.min.js');
+                await loadScript('https://unpkg.com/ar.js@3.4.5/aframe/build/aframe-ar.js');
+
+                // Register our component now that AFRAME is available
+                registerARComponent();
+
+                // Inject the scene into the DOM
+                statusEl.textContent = 'Starting AR...';
+                document.getElementById('scene-container').innerHTML =
+                    '<a-scene' +
+                    '  vr-mode-ui="enabled: false"' +
+                    '  embedded' +
+                    '  arjs="sourceType: webcam; debugUIEnabled: false;"' +
+                    '  renderer="antialias: true; alpha: true"' +
+                    '  ar-location-based>' +
+                    '  <a-entity camera></a-entity>' +
+                    '  <a-entity id="destination-pin" visible="false">' +
+                    '    <a-sphere position="0 1.25 0" radius="0.5" color="#EF2D5E"></a-sphere>' +
+                    '    <a-cylinder position="0 0.5 0" radius="0.2" height="1.5" color="#FFC65D"></a-cylinder>' +
+                    '    <a-text value="MALL" align="center" position="0 1.75 0" color="#ffffff" scale="2 2 2"></a-text>' +
+                    '  </a-entity>' +
+                    '</a-scene>';
+
+                // Hide start screen, show HUD
                 document.getElementById('start-screen').style.display = 'none';
-                document.getElementById('ar-scene').style.display = '';
                 document.getElementById('hud').style.display = '';
 
-                // Boot the AR navigation component
-                document.getElementById('ar-scene').setAttribute('ar-location-based', '');
-
             } catch (err) {
+                btn.disabled = false;
+                statusEl.style.display = 'none';
                 errorEl.textContent = err.message || 'Could not start AR. Check camera & location permissions.';
                 errorEl.style.display = 'block';
                 console.error('AR start error:', err);
@@ -153,163 +181,153 @@
         });
 
         // ── AR location-based navigation component ──
-        AFRAME.registerComponent('ar-location-based', {
-            init: function () {
-                this.currentPosition = null;
-                this.destinationPosition = null;
-                this.deviceHeading = undefined;
-                this.distanceElement = document.getElementById('distance-info');
-                this.directionElement = document.getElementById('direction-info');
+        function registerARComponent() {
+            AFRAME.registerComponent('ar-location-based', {
+                init: function () {
+                    this.currentPosition = null;
+                    this.destinationPosition = null;
+                    this.deviceHeading = undefined;
+                    this.distanceElement = document.getElementById('distance-info');
+                    this.directionElement = document.getElementById('direction-info');
 
-                // Start GPS tracking
-                if (!navigator.geolocation) {
-                    this.directionElement.textContent = 'Geolocation not supported';
-                    return;
-                }
-
-                this.watchId = navigator.geolocation.watchPosition(
-                    this.updateCurrentPosition.bind(this),
-                    this.handleError.bind(this),
-                    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-                );
-
-                // Default destination (NYC — change these coordinates to your target)
-                this.setDestination(40.7128, -74.0060, 0, 'Shopping Mall');
-
-                // Compass / device orientation
-                window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
-                // Some browsers fire 'deviceorientationabsolute' for true north
-                window.addEventListener('deviceorientationabsolute', this.handleOrientation.bind(this));
-            },
-
-            remove: function () {
-                if (this.watchId !== undefined) {
-                    navigator.geolocation.clearWatch(this.watchId);
-                }
-            },
-
-            // ── GPS ──
-            updateCurrentPosition: function (position) {
-                this.currentPosition = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    altitude: position.coords.altitude || 0
-                };
-                this.updateARElements();
-            },
-
-            setDestination: function (latitude, longitude, altitude, name) {
-                this.destinationPosition = {
-                    latitude: latitude,
-                    longitude: longitude,
-                    altitude: altitude || 0,
-                    name: name || 'Destination'
-                };
-            },
-
-            // ── Haversine distance (meters) ──
-            calculateDistance: function () {
-                if (!this.currentPosition || !this.destinationPosition) return null;
-
-                const R = 6371000;
-                const lat1 = this.toRad(this.currentPosition.latitude);
-                const lat2 = this.toRad(this.destinationPosition.latitude);
-                const dLat = this.toRad(this.destinationPosition.latitude - this.currentPosition.latitude);
-                const dLon = this.toRad(this.destinationPosition.longitude - this.currentPosition.longitude);
-
-                const a = Math.sin(dLat / 2) ** 2 +
-                          Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            },
-
-            // ── Bearing to destination (degrees from north) ──
-            calculateBearing: function () {
-                if (!this.currentPosition || !this.destinationPosition) return null;
-
-                const lat1 = this.toRad(this.currentPosition.latitude);
-                const lat2 = this.toRad(this.destinationPosition.latitude);
-                const dLon = this.toRad(this.destinationPosition.longitude - this.currentPosition.longitude);
-
-                const y = Math.sin(dLon) * Math.cos(lat2);
-                const x = Math.cos(lat1) * Math.sin(lat2) -
-                          Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-                return (this.toDeg(Math.atan2(y, x)) + 360) % 360;
-            },
-
-            // ── Device compass ──
-            handleOrientation: function (event) {
-                // Prefer absolute orientation (true north); fall back to alpha
-                if (event.absolute && event.alpha !== null) {
-                    this.deviceHeading = 360 - event.alpha; // convert to compass heading
-                } else if (event.webkitCompassHeading !== undefined) {
-                    // Safari / iOS
-                    this.deviceHeading = event.webkitCompassHeading;
-                } else if (event.alpha !== null) {
-                    this.deviceHeading = 360 - event.alpha;
-                }
-                this.updateARElements();
-            },
-
-            // ── Render loop ──
-            updateARElements: function () {
-                if (!this.currentPosition || !this.destinationPosition || this.deviceHeading === undefined) return;
-
-                const distance = this.calculateDistance();
-                const bearing = this.calculateBearing();
-                const relativeBearing = (bearing - this.deviceHeading + 360) % 360;
-                const inView = relativeBearing < 20 || relativeBearing > 340;
-
-                // Update HUD — distance
-                if (this.distanceElement) {
-                    const text = distance < 1000
-                        ? Math.round(distance) + ' m'
-                        : (distance / 1000).toFixed(1) + ' km';
-                    this.distanceElement.textContent = this.destinationPosition.name + ': ' + text;
-                }
-
-                // Update HUD — direction
-                if (this.directionElement) {
-                    if (inView) {
-                        this.directionElement.textContent = 'Destination in view!';
-                    } else if (relativeBearing > 180) {
-                        this.directionElement.textContent = '\u21B0 Turn left';
-                    } else {
-                        this.directionElement.textContent = '\u21B1 Turn right';
+                    // Start GPS tracking
+                    if (!navigator.geolocation) {
+                        this.directionElement.textContent = 'Geolocation not supported';
+                        return;
                     }
-                }
 
-                // Update AR pin
-                const pin = document.getElementById('destination-pin');
-                if (!pin) return;
+                    this.watchId = navigator.geolocation.watchPosition(
+                        this.updateCurrentPosition.bind(this),
+                        this.handleError.bind(this),
+                        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+                    );
 
-                pin.setAttribute('visible', inView);
-                if (inView) {
-                    const altDiff = (this.destinationPosition.altitude || 0) - (this.currentPosition.altitude || 0);
-                    const scale = Math.min(100, Math.max(0.5, distance / 100));
+                    // Default destination (NYC — change these coordinates to your target)
+                    this.setDestination(40.7128, -74.0060, 0, 'Shopping Mall');
 
-                    pin.setAttribute('position', {
-                        x: 0,
-                        y: altDiff > 10 ? 2 : 0,
-                        z: -scale
-                    });
-                    pin.setAttribute('scale', {
-                        x: 1 / scale,
-                        y: 1 / scale,
-                        z: 1 / scale
-                    });
-                }
-            },
+                    // Compass / device orientation
+                    window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+                    window.addEventListener('deviceorientationabsolute', this.handleOrientation.bind(this));
+                },
 
-            handleError: function (error) {
-                console.error('Geolocation error:', error);
-                if (this.directionElement) {
-                    this.directionElement.textContent = 'Location error — check GPS permissions';
-                }
-            },
+                remove: function () {
+                    if (this.watchId !== undefined) {
+                        navigator.geolocation.clearWatch(this.watchId);
+                    }
+                },
 
-            toRad: function (d) { return d * Math.PI / 180; },
-            toDeg: function (r) { return r * 180 / Math.PI; }
-        });
+                updateCurrentPosition: function (position) {
+                    this.currentPosition = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        altitude: position.coords.altitude || 0
+                    };
+                    this.updateARElements();
+                },
+
+                setDestination: function (latitude, longitude, altitude, name) {
+                    this.destinationPosition = {
+                        latitude: latitude,
+                        longitude: longitude,
+                        altitude: altitude || 0,
+                        name: name || 'Destination'
+                    };
+                },
+
+                // Haversine distance (meters)
+                calculateDistance: function () {
+                    if (!this.currentPosition || !this.destinationPosition) return null;
+
+                    var R = 6371000;
+                    var lat1 = this.toRad(this.currentPosition.latitude);
+                    var lat2 = this.toRad(this.destinationPosition.latitude);
+                    var dLat = this.toRad(this.destinationPosition.latitude - this.currentPosition.latitude);
+                    var dLon = this.toRad(this.destinationPosition.longitude - this.currentPosition.longitude);
+
+                    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                },
+
+                // Bearing to destination (degrees from north)
+                calculateBearing: function () {
+                    if (!this.currentPosition || !this.destinationPosition) return null;
+
+                    var lat1 = this.toRad(this.currentPosition.latitude);
+                    var lat2 = this.toRad(this.destinationPosition.latitude);
+                    var dLon = this.toRad(this.destinationPosition.longitude - this.currentPosition.longitude);
+
+                    var y = Math.sin(dLon) * Math.cos(lat2);
+                    var x = Math.cos(lat1) * Math.sin(lat2) -
+                            Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+                    return (this.toDeg(Math.atan2(y, x)) + 360) % 360;
+                },
+
+                // Device compass
+                handleOrientation: function (event) {
+                    if (event.absolute && event.alpha !== null) {
+                        this.deviceHeading = 360 - event.alpha;
+                    } else if (event.webkitCompassHeading !== undefined) {
+                        this.deviceHeading = event.webkitCompassHeading;
+                    } else if (event.alpha !== null) {
+                        this.deviceHeading = 360 - event.alpha;
+                    }
+                    this.updateARElements();
+                },
+
+                // Update HUD + AR pin
+                updateARElements: function () {
+                    if (!this.currentPosition || !this.destinationPosition || this.deviceHeading === undefined) return;
+
+                    var distance = this.calculateDistance();
+                    var bearing = this.calculateBearing();
+                    var relativeBearing = (bearing - this.deviceHeading + 360) % 360;
+                    var inView = relativeBearing < 20 || relativeBearing > 340;
+
+                    // HUD — distance
+                    if (this.distanceElement) {
+                        var text = distance < 1000
+                            ? Math.round(distance) + ' m'
+                            : (distance / 1000).toFixed(1) + ' km';
+                        this.distanceElement.textContent = this.destinationPosition.name + ': ' + text;
+                    }
+
+                    // HUD — direction
+                    if (this.directionElement) {
+                        if (inView) {
+                            this.directionElement.textContent = 'Destination in view!';
+                        } else if (relativeBearing > 180) {
+                            this.directionElement.textContent = '\u21B0 Turn left';
+                        } else {
+                            this.directionElement.textContent = '\u21B1 Turn right';
+                        }
+                    }
+
+                    // AR pin
+                    var pin = document.getElementById('destination-pin');
+                    if (!pin) return;
+
+                    pin.setAttribute('visible', inView);
+                    if (inView) {
+                        var altDiff = (this.destinationPosition.altitude || 0) - (this.currentPosition.altitude || 0);
+                        var scale = Math.min(100, Math.max(0.5, distance / 100));
+
+                        pin.setAttribute('position', { x: 0, y: altDiff > 10 ? 2 : 0, z: -scale });
+                        pin.setAttribute('scale', { x: 1 / scale, y: 1 / scale, z: 1 / scale });
+                    }
+                },
+
+                handleError: function (error) {
+                    console.error('Geolocation error:', error);
+                    if (this.directionElement) {
+                        this.directionElement.textContent = 'Location error \u2014 check GPS permissions';
+                    }
+                },
+
+                toRad: function (d) { return d * Math.PI / 180; },
+                toDeg: function (r) { return r * 180 / Math.PI; }
+            });
+        }
     </script>
 </body>
 </html>
